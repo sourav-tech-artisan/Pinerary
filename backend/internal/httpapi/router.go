@@ -17,6 +17,7 @@ type RouterConfig struct {
 	UserProvisioner userProvisioner
 	ProfileStore    profileStore
 	JourneyService  journeyService
+	PlaceService    placeService
 	Verifier        identity.Verifier
 }
 
@@ -55,6 +56,15 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	api.PATCH("/journeys/:journeyId", journey.rename)
 	api.POST("/journeys/:journeyId/end", journey.complete)
 	api.POST("/journeys/:journeyId/convert-to-trip", journey.convertToTrip)
+
+	place := placeHandler{service: config.PlaceService}
+	api.POST("/places", place.save)
+	api.GET("/places", place.list)
+	api.PATCH("/places/:placeId", place.update)
+	api.DELETE("/places/:placeId", place.delete)
+	api.POST("/journeys/:journeyId/stops", place.pinStop)
+	api.GET("/journeys/:journeyId/stops", place.listStops)
+	api.PATCH("/journeys/:journeyId/stops/:stopId", place.updateStop)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

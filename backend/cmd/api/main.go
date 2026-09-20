@@ -17,6 +17,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/httpapi"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -54,6 +55,7 @@ func run() error {
 
 	queries := dbgen.New(databasePool)
 	journeyService := journeys.NewService(queries)
+	placeService := places.NewService(databasePool)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
@@ -63,6 +65,7 @@ func run() error {
 			UserProvisioner: queries,
 			ProfileStore:    queries,
 			JourneyService:  journeyService,
+			PlaceService:    placeService,
 			Verifier:        verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,

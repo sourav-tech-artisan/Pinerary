@@ -61,16 +61,17 @@ type Journey struct {
 }
 
 type JourneyStop struct {
-	ID             pgtype.UUID        `json:"id"`
-	JourneyID      pgtype.UUID        `json:"journey_id"`
-	PlaceID        pgtype.UUID        `json:"place_id"`
-	SequenceNumber int64              `json:"sequence_number"`
-	CapturedAt     pgtype.Timestamptz `json:"captured_at"`
-	DisplayName    string             `json:"display_name"`
-	Note           string             `json:"note"`
-	Location       interface{}        `json:"location"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ID              pgtype.UUID        `json:"id"`
+	JourneyID       pgtype.UUID        `json:"journey_id"`
+	PlaceID         pgtype.UUID        `json:"place_id"`
+	SequenceNumber  int64              `json:"sequence_number"`
+	CapturedAt      pgtype.Timestamptz `json:"captured_at"`
+	DisplayName     string             `json:"display_name"`
+	Note            string             `json:"note"`
+	Location        interface{}        `json:"location"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	ClientRequestID pgtype.UUID        `json:"client_request_id"`
 }
 
 type LocationSample struct {
@@ -114,14 +115,15 @@ type Photo struct {
 }
 
 type Place struct {
-	ID        pgtype.UUID        `json:"id"`
-	OwnerID   pgtype.UUID        `json:"owner_id"`
-	Name      string             `json:"name"`
-	Notes     string             `json:"notes"`
-	Location  interface{}        `json:"location"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	Name            string             `json:"name"`
+	Notes           string             `json:"notes"`
+	Location        interface{}        `json:"location"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	ClientRequestID pgtype.UUID        `json:"client_request_id"`
 }
 
 type RouteSegment struct {

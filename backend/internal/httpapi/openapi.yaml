@@ -191,19 +191,73 @@ paths:
       - $ref: "#/components/parameters/JourneyID"
     post:
       operationId: addJourneyStop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/PinStopRequest"}
       responses:
         "201":
           description: Stop added to the immutable timeline
         default:
           $ref: "#/components/responses/Error"
+    get:
+      operationId: listJourneyStops
+      responses:
+        "200": {description: Original chronological stop timeline}
+        default: {$ref: "#/components/responses/Error"}
+  /journeys/{journeyId}/stops/{stopId}:
+    patch:
+      operationId: updateJourneyStopMetadata
+      parameters:
+        - $ref: "#/components/parameters/JourneyID"
+        - {name: stopId, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, note]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 200}
+                note: {type: string}
+      responses:
+        "200": {description: Editable stop metadata updated}
+        default: {$ref: "#/components/responses/Error"}
   /places:
+    get:
+      operationId: listPlaces
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        "200": {description: Saved place library}
+        default: {$ref: "#/components/responses/Error"}
     post:
       operationId: savePlace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SavePlaceRequest"}
       responses:
         "201":
           description: Place saved
         default:
           $ref: "#/components/responses/Error"
+  /places/{placeId}:
+    parameters:
+      - {name: placeId, in: path, required: true, schema: {type: string, format: uuid}}
+    patch:
+      operationId: updatePlace
+      responses:
+        "200": {description: Place metadata updated}
+        default: {$ref: "#/components/responses/Error"}
+    delete:
+      operationId: deletePlace
+      responses:
+        "204": {description: Place removed from the library}
+        default: {$ref: "#/components/responses/Error"}
   /places/nearby:
     get:
       operationId: getNearbyPlaces
@@ -353,3 +407,20 @@ components:
       required: [version]
       properties:
         version: {type: integer, minimum: 1}
+    SavePlaceRequest:
+      type: object
+      required: [client_request_id, name, latitude, longitude]
+      properties:
+        client_request_id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 200}
+        notes: {type: string}
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+    PinStopRequest:
+      allOf:
+        - $ref: "#/components/schemas/SavePlaceRequest"
+        - type: object
+          required: [captured_at]
+          properties:
+            note: {type: string}
+            captured_at: {type: string, format: date-time}
