@@ -1,0 +1,21 @@
+name: pinerary
+
+services:
+  postgres:
+    image: postgis/postgis:17-3.5-alpine
+    environment:
+      POSTGRES_DB: pinerary
+      POSTGRES_USER: pinerary
+      POSTGRES_PASSWORD: pinerary
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pinerary -d pinerary"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

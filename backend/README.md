@@ -5,6 +5,17 @@ The Pinerary backend is a Go HTTP API built with Gin.
 ## Requirements
 
 - Go 1.24 or newer
+- Docker with Compose for local infrastructure
+
+## Local database
+
+```bash
+make db-up
+make migrate
+```
+
+The default connection details match [`../infra/compose.yaml`](../infra/compose.yaml). Copy
+`.env.example` when overriding local settings.
 
 ## Run
 

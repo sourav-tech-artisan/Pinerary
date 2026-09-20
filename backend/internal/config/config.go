@@ -5,10 +5,14 @@ import (
 	"strings"
 )
 
-const defaultHTTPAddr = ":8080"
+const (
+	defaultDatabaseURL = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
+	defaultHTTPAddr    = ":8080"
+)
 
 type Config struct {
 	AllowedOrigins []string
+	DatabaseURL    string
 	HTTPAddr       string
 }
 
@@ -20,8 +24,16 @@ func Load() Config {
 
 	return Config{
 		AllowedOrigins: splitList(os.Getenv("PINERARY_ALLOWED_ORIGINS")),
+		DatabaseURL:    valueOrDefault("PINERARY_DATABASE_URL", defaultDatabaseURL),
 		HTTPAddr:       httpAddr,
 	}
+}
+
+func valueOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func splitList(value string) []string {

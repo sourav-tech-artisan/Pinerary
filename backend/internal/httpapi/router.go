@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 type RouterConfig struct {
 	AllowedOrigins []string
 	Logger         *slog.Logger
+	Ready          func(context.Context) error
 }
 
 func NewRouter(config RouterConfig) *gin.Engine {
@@ -33,6 +35,15 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	router.GET("/openapi.yaml", serveOpenAPI)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+	router.GET("/health/ready", func(ctx *gin.Context) {
+		if config.Ready != nil {
+			if err := config.Ready(ctx.Request.Context()); err != nil {
+				writeError(ctx, http.StatusServiceUnavailable, "not_ready", "the service is not ready")
+				return
+			}
+		}
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 

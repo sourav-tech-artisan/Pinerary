@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -85,5 +87,20 @@ func TestOpenAPISpecIsServed(t *testing.T) {
 	}
 	if contentType := recorder.Header().Get("Content-Type"); contentType != "application/yaml; charset=utf-8" {
 		t.Fatalf("unexpected content type %q", contentType)
+	}
+}
+
+func TestReadinessReportsDependencyFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{Ready: func(_ context.Context) error {
+		return errors.New("database unavailable")
+	}})
+	recorder := httptest.NewRecorder()
+
+	request := httptest.NewRequest(http.MethodGet, "/health/ready", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, recorder.Code)
 	}
 }

@@ -12,6 +12,16 @@ func TestLoadUsesDefaultHTTPAddress(t *testing.T) {
 	}
 }
 
+func TestLoadUsesConfiguredDatabaseURL(t *testing.T) {
+	t.Setenv("PINERARY_DATABASE_URL", "postgres://example/test")
+
+	cfg := Load()
+
+	if cfg.DatabaseURL != "postgres://example/test" {
+		t.Fatalf("expected configured database URL, got %q", cfg.DatabaseURL)
+	}
+}
+
 func TestLoadUsesConfiguredHTTPAddress(t *testing.T) {
 	t.Setenv("PINERARY_HTTP_ADDR", "127.0.0.1:9090")
 

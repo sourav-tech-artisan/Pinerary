@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/config"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/httpapi"
 )
 
@@ -33,10 +34,22 @@ func main() {
 func run() error {
 	cfg := config.Load()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	startupContext, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelStartup()
+
+	databasePool, err := database.Open(startupContext, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer databasePool.Close()
 
 	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(httpapi.RouterConfig{AllowedOrigins: cfg.AllowedOrigins, Logger: logger}),
+		Addr: cfg.HTTPAddr,
+		Handler: httpapi.NewRouter(httpapi.RouterConfig{
+			AllowedOrigins: cfg.AllowedOrigins,
+			Logger:         logger,
+			Ready:          databasePool.Ping,
+		}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,

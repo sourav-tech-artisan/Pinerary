@@ -1,7 +1,13 @@
-.PHONY: build fmt fmt-check lint run test vet
+.PHONY: build db-down db-up fmt fmt-check lint migrate run test vet
 
 build:
 	go build -o bin/pinerary-api ./cmd/api
+
+db-down:
+	docker compose -f ../infra/compose.yaml down
+
+db-up:
+	docker compose -f ../infra/compose.yaml up -d postgres
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
@@ -11,6 +17,9 @@ fmt-check:
 
 lint:
 	golangci-lint run ./...
+
+migrate:
+	go run ./cmd/migrate up
 
 run:
 	go run ./cmd/api
