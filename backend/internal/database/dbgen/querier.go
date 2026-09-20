@@ -14,15 +14,23 @@ type Querier interface {
 	AddOutboxEvent(ctx context.Context, arg AddOutboxEventParams) (OutboxEvent, error)
 	ClaimNextJobs(ctx context.Context, arg ClaimNextJobsParams) ([]BackgroundJob, error)
 	CompleteJob(ctx context.Context, id int64) error
+	CompleteJourney(ctx context.Context, arg CompleteJourneyParams) (Journey, error)
+	ConvertOutingToTrip(ctx context.Context, arg ConvertOutingToTripParams) (Journey, error)
+	CreateJourney(ctx context.Context, arg CreateJourneyParams) (Journey, error)
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) (int64, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (BackgroundJob, error)
+	ExpireJourney(ctx context.Context, arg ExpireJourneyParams) (Journey, error)
+	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserBySubject(ctx context.Context, oidcSubject string) (User, error)
+	ListActiveOutingsBefore(ctx context.Context, arg ListActiveOutingsBeforeParams) ([]Journey, error)
 	ListDevices(ctx context.Context, userID pgtype.UUID) ([]Device, error)
+	ListJourneys(ctx context.Context, arg ListJourneysParams) ([]Journey, error)
 	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	MarkOutboxEventPublished(ctx context.Context, id int64) error
 	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
 	RetryJob(ctx context.Context, arg RetryJobParams) error
+	UpdateJourneyLabel(ctx context.Context, arg UpdateJourneyLabelParams) (Journey, error)
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
 	UpsertUserFromIdentity(ctx context.Context, arg UpsertUserFromIdentityParams) (User, error)
