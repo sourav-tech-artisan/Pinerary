@@ -113,6 +113,32 @@ func (q *Queries) CreatePhotoUpload(ctx context.Context, arg CreatePhotoUploadPa
 	return i, err
 }
 
+const getPhotoByID = `-- name: GetPhotoByID :one
+SELECT id, owner_id, journey_id, stop_id, object_key, thumbnail_key, content_type, byte_size, status, captured_at, created_at, updated_at, client_request_id, checksum_sha256 FROM photos WHERE id = $1
+`
+
+func (q *Queries) GetPhotoByID(ctx context.Context, id pgtype.UUID) (Photo, error) {
+	row := q.db.QueryRow(ctx, getPhotoByID, id)
+	var i Photo
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.JourneyID,
+		&i.StopID,
+		&i.ObjectKey,
+		&i.ThumbnailKey,
+		&i.ContentType,
+		&i.ByteSize,
+		&i.Status,
+		&i.CapturedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ClientRequestID,
+		&i.ChecksumSha256,
+	)
+	return i, err
+}
+
 const getPhotoForOwner = `-- name: GetPhotoForOwner :one
 SELECT id, owner_id, journey_id, stop_id, object_key, thumbnail_key, content_type, byte_size, status, captured_at, created_at, updated_at, client_request_id, checksum_sha256 FROM photos WHERE id = $1 AND owner_id = $2
 `

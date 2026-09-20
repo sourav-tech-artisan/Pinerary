@@ -14,6 +14,8 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/jobs"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/media"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
@@ -51,6 +53,14 @@ func run() error {
 	}
 	trackMatcher := tracking.NewMatcher(dbgen.New(pool), valhalla)
 	runner.Register("track.match", trackMatcher.HandleJob)
+	objectStore, err := objectstore.NewMinIOStore(
+		cfg.ObjectEndpoint, cfg.ObjectAccessKey, cfg.ObjectSecretKey, cfg.ObjectBucket, cfg.ObjectUseTLS,
+	)
+	if err != nil {
+		return err
+	}
+	photoProcessor := media.NewProcessor(dbgen.New(pool), objectStore, cfg.MaxPhotoBytes)
+	runner.Register("photo.process", photoProcessor.HandleJob)
 
 	logger.Info("starting worker", "worker_id", workerID)
 	return runner.Run(ctx)

@@ -30,6 +30,7 @@ type Querier interface {
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
 	GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
+	GetPhotoByID(ctx context.Context, id pgtype.UUID) (Photo, error)
 	GetPhotoForOwner(ctx context.Context, arg GetPhotoForOwnerParams) (Photo, error)
 	GetPlace(ctx context.Context, arg GetPlaceParams) (GetPlaceRow, error)
 	GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeocodeCacheParams) (ReverseGeocodeCache, error)

@@ -19,6 +19,9 @@ RETURNING *;
 -- name: GetPhotoForOwner :one
 SELECT * FROM photos WHERE id = $1 AND owner_id = $2;
 
+-- name: GetPhotoByID :one
+SELECT * FROM photos WHERE id = $1;
+
 -- name: CompletePhotoUpload :one
 UPDATE photos
 SET status = 'uploaded', byte_size = $3, checksum_sha256 = $4, updated_at = now()
