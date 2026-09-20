@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -79,6 +80,16 @@ func (p *Processor) Process(ctx context.Context, journeyID uuid.UUID) error {
 			if err != nil {
 				return fmt.Errorf("create route segment: %w", err)
 			}
+		}
+		jobPayload, _ := json.Marshal(processJob{JourneyID: journeyID})
+		_, err := tx.EnqueueJob(ctx, dbgen.EnqueueJobParams{
+			JobType: "track.match", Payload: jobPayload,
+			IdempotencyKey: pgtype.Text{String: journeyID.String(), Valid: true},
+			MaxAttempts:    8,
+			RunAt:          pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		})
+		if err != nil {
+			return fmt.Errorf("enqueue map matching: %w", err)
 		}
 		return nil
 	})

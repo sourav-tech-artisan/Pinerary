@@ -67,3 +67,14 @@ FROM route_segments AS segments
 JOIN journeys ON journeys.id = segments.journey_id
 WHERE segments.journey_id = $1 AND journeys.owner_id = $2
 ORDER BY segments.segment_number;
+
+-- name: ListRouteSegmentsForMatching :many
+SELECT id, ST_AsGeoJSON(raw_path::geometry)::text AS geojson
+FROM route_segments
+WHERE journey_id = $1
+ORDER BY segment_number;
+
+-- name: UpdateMatchedRouteSegment :exec
+UPDATE route_segments
+SET matched_path = ST_GeogFromText(sqlc.arg(matched_wkt)), updated_at = now()
+WHERE id = $1;

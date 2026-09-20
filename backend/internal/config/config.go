@@ -11,6 +11,7 @@ const (
 	defaultHTTPAddr           = ":8080"
 	defaultNominatimURL       = "https://nominatim.openstreetmap.org"
 	defaultNominatimUserAgent = "Pinerary/0.1"
+	defaultValhallaURL        = "http://localhost:8002"
 )
 
 type Config struct {
@@ -22,6 +23,7 @@ type Config struct {
 	NominatimUserAgent string
 	OIDCAudience       string
 	OIDCIssuerURL      string
+	ValhallaURL        string
 }
 
 func Load() Config {
@@ -39,6 +41,7 @@ func Load() Config {
 		NominatimUserAgent: valueOrDefault("PINERARY_NOMINATIM_USER_AGENT", defaultNominatimUserAgent),
 		OIDCAudience:       os.Getenv("PINERARY_OIDC_AUDIENCE"),
 		OIDCIssuerURL:      os.Getenv("PINERARY_OIDC_ISSUER_URL"),
+		ValhallaURL:        valueOrDefault("PINERARY_VALHALLA_URL", defaultValhallaURL),
 	}
 }
 

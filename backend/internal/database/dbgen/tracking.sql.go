@@ -262,6 +262,38 @@ func (q *Queries) ListLocationSamplesForProcessing(ctx context.Context, journeyI
 	return items, nil
 }
 
+const listRouteSegmentsForMatching = `-- name: ListRouteSegmentsForMatching :many
+SELECT id, ST_AsGeoJSON(raw_path::geometry)::text AS geojson
+FROM route_segments
+WHERE journey_id = $1
+ORDER BY segment_number
+`
+
+type ListRouteSegmentsForMatchingRow struct {
+	ID      pgtype.UUID `json:"id"`
+	Geojson string      `json:"geojson"`
+}
+
+func (q *Queries) ListRouteSegmentsForMatching(ctx context.Context, journeyID pgtype.UUID) ([]ListRouteSegmentsForMatchingRow, error) {
+	rows, err := q.db.Query(ctx, listRouteSegmentsForMatching, journeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRouteSegmentsForMatchingRow{}
+	for rows.Next() {
+		var i ListRouteSegmentsForMatchingRow
+		if err := rows.Scan(&i.ID, &i.Geojson); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateLocationSampleQuality = `-- name: UpdateLocationSampleQuality :exec
 UPDATE location_samples
 SET is_accepted = $2, rejection_reason = $3
@@ -276,5 +308,21 @@ type UpdateLocationSampleQualityParams struct {
 
 func (q *Queries) UpdateLocationSampleQuality(ctx context.Context, arg UpdateLocationSampleQualityParams) error {
 	_, err := q.db.Exec(ctx, updateLocationSampleQuality, arg.ID, arg.IsAccepted, arg.RejectionReason)
+	return err
+}
+
+const updateMatchedRouteSegment = `-- name: UpdateMatchedRouteSegment :exec
+UPDATE route_segments
+SET matched_path = ST_GeogFromText($2), updated_at = now()
+WHERE id = $1
+`
+
+type UpdateMatchedRouteSegmentParams struct {
+	ID         pgtype.UUID `json:"id"`
+	MatchedWkt interface{} `json:"matched_wkt"`
+}
+
+func (q *Queries) UpdateMatchedRouteSegment(ctx context.Context, arg UpdateMatchedRouteSegmentParams) error {
+	_, err := q.db.Exec(ctx, updateMatchedRouteSegment, arg.ID, arg.MatchedWkt)
 	return err
 }

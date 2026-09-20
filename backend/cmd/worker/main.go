@@ -14,6 +14,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/jobs"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
@@ -28,7 +29,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := database.Open(ctx, config.Load().DatabaseURL)
+	cfg := config.Load()
+	pool, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
@@ -43,6 +45,12 @@ func run() error {
 	runner := jobs.NewRunner(dbgen.New(pool), logger, workerID)
 	trackProcessor := tracking.NewProcessor(pool)
 	runner.Register("track.process", trackProcessor.HandleJob)
+	valhalla, err := routing.NewValhallaClient(cfg.ValhallaURL, nil)
+	if err != nil {
+		return err
+	}
+	trackMatcher := tracking.NewMatcher(dbgen.New(pool), valhalla)
+	runner.Register("track.match", trackMatcher.HandleJob)
 
 	logger.Info("starting worker", "worker_id", workerID)
 	return runner.Run(ctx)

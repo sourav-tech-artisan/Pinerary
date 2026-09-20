@@ -40,6 +40,7 @@ type Querier interface {
 	ListLocationSamples(ctx context.Context, arg ListLocationSamplesParams) ([]ListLocationSamplesRow, error)
 	ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error)
 	ListPlaces(ctx context.Context, arg ListPlacesParams) ([]ListPlacesRow, error)
+	ListRouteSegmentsForMatching(ctx context.Context, journeyID pgtype.UUID) ([]ListRouteSegmentsForMatchingRow, error)
 	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	LockActiveJourney(ctx context.Context, arg LockActiveJourneyParams) (pgtype.UUID, error)
 	MarkOutboxEventPublished(ctx context.Context, id int64) error
@@ -49,6 +50,7 @@ type Querier interface {
 	UpdateJourneyLabel(ctx context.Context, arg UpdateJourneyLabelParams) (Journey, error)
 	UpdateJourneyStopMetadata(ctx context.Context, arg UpdateJourneyStopMetadataParams) (UpdateJourneyStopMetadataRow, error)
 	UpdateLocationSampleQuality(ctx context.Context, arg UpdateLocationSampleQualityParams) error
+	UpdateMatchedRouteSegment(ctx context.Context, arg UpdateMatchedRouteSegmentParams) error
 	UpdatePlace(ctx context.Context, arg UpdatePlaceParams) (UpdatePlaceRow, error)
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
