@@ -16,6 +16,7 @@ type RouterConfig struct {
 	Ready           func(context.Context) error
 	UserProvisioner userProvisioner
 	ProfileStore    profileStore
+	JourneyService  journeyService
 	Verifier        identity.Verifier
 }
 
@@ -46,6 +47,14 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	api.POST("/devices", profile.registerDevice)
 	api.GET("/devices", profile.listDevices)
 	api.DELETE("/devices/:deviceId", profile.deleteDevice)
+
+	journey := journeyHandler{service: config.JourneyService}
+	api.POST("/journeys", journey.create)
+	api.GET("/journeys", journey.list)
+	api.GET("/journeys/:journeyId", journey.get)
+	api.PATCH("/journeys/:journeyId", journey.rename)
+	api.POST("/journeys/:journeyId/end", journey.complete)
+	api.POST("/journeys/:journeyId/convert-to-trip", journey.convertToTrip)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
