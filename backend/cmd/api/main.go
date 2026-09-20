@@ -19,6 +19,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -62,6 +63,7 @@ func run() error {
 		return err
 	}
 	geocodingService := geocoding.NewService(queries, nominatim)
+	trackingService := tracking.NewService(databasePool)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
@@ -73,6 +75,7 @@ func run() error {
 			JourneyService:   journeyService,
 			PlaceService:     placeService,
 			GeocodingService: geocodingService,
+			TrackingService:  trackingService,
 			Verifier:         verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,

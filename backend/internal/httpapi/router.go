@@ -19,6 +19,7 @@ type RouterConfig struct {
 	JourneyService   journeyService
 	PlaceService     placeService
 	GeocodingService geocodingService
+	TrackingService  trackingService
 	Verifier         identity.Verifier
 }
 
@@ -69,6 +70,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 
 	geocoder := geocodingHandler{service: config.GeocodingService}
 	api.GET("/places/reverse-geocode", geocoder.reverse)
+
+	tracking := trackingHandler{service: config.TrackingService}
+	api.POST("/journeys/:journeyId/locations/batch", tracking.ingest)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

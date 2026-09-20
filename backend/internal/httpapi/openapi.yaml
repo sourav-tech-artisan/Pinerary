@@ -163,7 +163,7 @@ paths:
       responses:
         "200": {description: Outing converted to trip}
         default: {$ref: "#/components/responses/Error"}
-  /journeys/{journeyId}/locations:batch:
+  /journeys/{journeyId}/locations/batch:
     parameters:
       - $ref: "#/components/parameters/JourneyID"
     post:
@@ -184,6 +184,16 @@ paths:
       responses:
         "202":
           description: Location samples accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [received, inserted, duplicates, flagged]
+                properties:
+                  received: {type: integer}
+                  inserted: {type: integer}
+                  duplicates: {type: integer}
+                  flagged: {type: integer}
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/stops:
