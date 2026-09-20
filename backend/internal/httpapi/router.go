@@ -30,6 +30,7 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	)
 	router.NoRoute(notFound)
 	router.NoMethod(methodNotAllowed)
+	router.GET("/openapi.yaml", serveOpenAPI)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

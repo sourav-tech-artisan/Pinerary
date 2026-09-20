@@ -1,0 +1,287 @@
+openapi: 3.1.0
+info:
+  title: Pinerary API
+  version: 0.1.0
+  description: API for recording journeys, places, route traces, photos, and public itineraries.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /me:
+    get:
+      operationId: getMe
+      responses:
+        "200":
+          description: Current user and preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        default:
+          $ref: "#/components/responses/Error"
+  /devices:
+    post:
+      operationId: registerDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDeviceRequest"
+      responses:
+        "201":
+          description: Device registered
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys:
+    get:
+      operationId: listJourneys
+      responses:
+        "200":
+          description: Journeys owned by the current user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Journey"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createJourney
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJourneyRequest"
+      responses:
+        "201":
+          description: Journey created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journey"
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys/{journeyId}:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    get:
+      operationId: getJourney
+      responses:
+        "200":
+          description: Journey detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journey"
+        default:
+          $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateJourney
+      responses:
+        "200":
+          description: Journey updated
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/end:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    post:
+      operationId: endJourney
+      responses:
+        "200":
+          description: Journey ended
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/locations:batch:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    post:
+      operationId: ingestLocations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points:
+                  type: array
+                  maxItems: 500
+                  items:
+                    $ref: "#/components/schemas/LocationPoint"
+      responses:
+        "202":
+          description: Location samples accepted
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/stops:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    post:
+      operationId: addJourneyStop
+      responses:
+        "201":
+          description: Stop added to the immutable timeline
+        default:
+          $ref: "#/components/responses/Error"
+  /places:
+    post:
+      operationId: savePlace
+      responses:
+        "201":
+          description: Place saved
+        default:
+          $ref: "#/components/responses/Error"
+  /places/nearby:
+    get:
+      operationId: getNearbyPlaces
+      parameters:
+        - {name: latitude, in: query, required: true, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: true, schema: {type: number, format: double}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
+        - {name: mode, in: query, schema: {$ref: "#/components/schemas/TransportMode"}}
+      responses:
+        "200":
+          description: Saved places ordered by road travel time
+        default:
+          $ref: "#/components/responses/Error"
+  /places/reverse-geocode:
+    get:
+      operationId: reverseGeocode
+      parameters:
+        - {name: latitude, in: query, required: true, schema: {type: number, format: double}}
+        - {name: longitude, in: query, required: true, schema: {type: number, format: double}}
+      responses:
+        "200":
+          description: Suggested place label
+        default:
+          $ref: "#/components/responses/Error"
+  /photos/upload-intents:
+    post:
+      operationId: createPhotoUploadIntent
+      responses:
+        "201":
+          description: Short-lived signed upload URL
+        default:
+          $ref: "#/components/responses/Error"
+  /photos/{photoId}/complete:
+    parameters:
+      - {name: photoId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      operationId: completePhotoUpload
+      responses:
+        "202":
+          description: Upload recorded and processing queued
+        default:
+          $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/shares:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    post:
+      operationId: createJourneyShare
+      responses:
+        "201":
+          description: Immutable public itinerary snapshot created
+        default:
+          $ref: "#/components/responses/Error"
+  /shares/{token}:
+    get:
+      security: []
+      operationId: getPublicShare
+      parameters:
+        - {name: token, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Public itinerary snapshot
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    JourneyID:
+      name: journeyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            request_id: {type: string}
+    User:
+      type: object
+      required: [id, subject, default_transport_mode]
+      properties:
+        id: {type: string, format: uuid}
+        subject: {type: string}
+        display_name: {type: string}
+        default_transport_mode:
+          $ref: "#/components/schemas/TransportMode"
+    RegisterDeviceRequest:
+      type: object
+      required: [installation_id, platform]
+      properties:
+        installation_id: {type: string, maxLength: 255}
+        platform: {type: string, enum: [web, android]}
+        push_subscription: {type: object, additionalProperties: true}
+    CreateJourneyRequest:
+      type: object
+      required: [kind, label, client_request_id]
+      properties:
+        kind: {type: string, enum: [trip, outing]}
+        label: {type: string, minLength: 1, maxLength: 160}
+        client_request_id: {type: string, format: uuid}
+    Journey:
+      type: object
+      required: [id, kind, label, status, started_at]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {type: string, enum: [trip, outing]}
+        label: {type: string}
+        status: {type: string, enum: [active, ended, expired]}
+        started_at: {type: string, format: date-time}
+        ended_at: {type: [string, "null"], format: date-time}
+    LocationPoint:
+      type: object
+      required: [sample_id, captured_at, latitude, longitude]
+      properties:
+        sample_id: {type: string, format: uuid}
+        captured_at: {type: string, format: date-time}
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+        accuracy_m: {type: number, format: double, minimum: 0}
+        speed_mps: {type: number, format: double, minimum: 0}
+        heading_deg: {type: number, format: double, minimum: 0, maximum: 360}
+    TransportMode:
+      type: string
+      enum: [motorcycle, car, walking]
+      default: motorcycle

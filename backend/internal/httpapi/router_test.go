@@ -71,3 +71,19 @@ func TestCORSAllowsConfiguredOrigin(t *testing.T) {
 		t.Fatalf("unexpected CORS origin %q", got)
 	}
 }
+
+func TestOpenAPISpecIsServed(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{})
+	recorder := httptest.NewRecorder()
+
+	request := httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+	if contentType := recorder.Header().Get("Content-Type"); contentType != "application/yaml; charset=utf-8" {
+		t.Fatalf("unexpected content type %q", contentType)
+	}
+}
