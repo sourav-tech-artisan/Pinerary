@@ -8,6 +8,22 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type BackgroundJob struct {
+	ID             int64              `json:"id"`
+	JobType        string             `json:"job_type"`
+	Payload        []byte             `json:"payload"`
+	IdempotencyKey pgtype.Text        `json:"idempotency_key"`
+	State          string             `json:"state"`
+	Attempts       int32              `json:"attempts"`
+	MaxAttempts    int32              `json:"max_attempts"`
+	RunAt          pgtype.Timestamptz `json:"run_at"`
+	LockedAt       pgtype.Timestamptz `json:"locked_at"`
+	LockedBy       pgtype.Text        `json:"locked_by"`
+	LastError      pgtype.Text        `json:"last_error"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Device struct {
 	ID               pgtype.UUID        `json:"id"`
 	UserID           pgtype.UUID        `json:"user_id"`
@@ -70,6 +86,16 @@ type LocationSample struct {
 	IsAccepted      bool               `json:"is_accepted"`
 	RejectionReason pgtype.Text        `json:"rejection_reason"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+type OutboxEvent struct {
+	ID            int64              `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   pgtype.UUID        `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Payload       []byte             `json:"payload"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	PublishedAt   pgtype.Timestamptz `json:"published_at"`
 }
 
 type Photo struct {

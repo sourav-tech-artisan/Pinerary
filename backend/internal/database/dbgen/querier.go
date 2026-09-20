@@ -11,8 +11,16 @@ import (
 )
 
 type Querier interface {
+	AddOutboxEvent(ctx context.Context, arg AddOutboxEventParams) (OutboxEvent, error)
+	ClaimNextJobs(ctx context.Context, arg ClaimNextJobsParams) ([]BackgroundJob, error)
+	CompleteJob(ctx context.Context, id int64) error
+	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (BackgroundJob, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserBySubject(ctx context.Context, oidcSubject string) (User, error)
+	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
+	MarkOutboxEventPublished(ctx context.Context, id int64) error
+	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
+	RetryJob(ctx context.Context, arg RetryJobParams) error
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertUserFromIdentity(ctx context.Context, arg UpsertUserFromIdentityParams) (User, error)
 }

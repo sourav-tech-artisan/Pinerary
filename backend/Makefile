@@ -1,4 +1,4 @@
-.PHONY: build db-down db-up fmt fmt-check generate lint migrate run test vet
+.PHONY: build db-down db-up fmt fmt-check generate lint migrate run run-worker test vet
 
 build:
 	go build -o bin/pinerary-api ./cmd/api
@@ -26,6 +26,9 @@ migrate:
 
 run:
 	go run ./cmd/api
+
+run-worker:
+	go run ./cmd/worker
 
 test:
 	go test -race -coverprofile=coverage.out ./...
