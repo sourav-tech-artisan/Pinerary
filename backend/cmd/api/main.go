@@ -14,6 +14,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/config"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/geocoding"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/httpapi"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
@@ -56,17 +57,23 @@ func run() error {
 	queries := dbgen.New(databasePool)
 	journeyService := journeys.NewService(queries)
 	placeService := places.NewService(databasePool)
+	nominatim, err := geocoding.NewNominatimClient(cfg.NominatimURL, cfg.NominatimUserAgent, nil)
+	if err != nil {
+		return err
+	}
+	geocodingService := geocoding.NewService(queries, nominatim)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
-			AllowedOrigins:  cfg.AllowedOrigins,
-			Logger:          logger,
-			Ready:           databasePool.Ping,
-			UserProvisioner: queries,
-			ProfileStore:    queries,
-			JourneyService:  journeyService,
-			PlaceService:    placeService,
-			Verifier:        verifier,
+			AllowedOrigins:   cfg.AllowedOrigins,
+			Logger:           logger,
+			Ready:            databasePool.Ping,
+			UserProvisioner:  queries,
+			ProfileStore:     queries,
+			JourneyService:   journeyService,
+			PlaceService:     placeService,
+			GeocodingService: geocodingService,
+			Verifier:         verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,

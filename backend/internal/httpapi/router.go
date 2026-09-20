@@ -11,14 +11,15 @@ import (
 )
 
 type RouterConfig struct {
-	AllowedOrigins  []string
-	Logger          *slog.Logger
-	Ready           func(context.Context) error
-	UserProvisioner userProvisioner
-	ProfileStore    profileStore
-	JourneyService  journeyService
-	PlaceService    placeService
-	Verifier        identity.Verifier
+	AllowedOrigins   []string
+	Logger           *slog.Logger
+	Ready            func(context.Context) error
+	UserProvisioner  userProvisioner
+	ProfileStore     profileStore
+	JourneyService   journeyService
+	PlaceService     placeService
+	GeocodingService geocodingService
+	Verifier         identity.Verifier
 }
 
 func NewRouter(config RouterConfig) *gin.Engine {
@@ -65,6 +66,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	api.POST("/journeys/:journeyId/stops", place.pinStop)
 	api.GET("/journeys/:journeyId/stops", place.listStops)
 	api.PATCH("/journeys/:journeyId/stops/:stopId", place.updateStop)
+
+	geocoder := geocodingHandler{service: config.GeocodingService}
+	api.GET("/places/reverse-geocode", geocoder.reverse)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

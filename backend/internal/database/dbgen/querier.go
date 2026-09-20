@@ -26,6 +26,7 @@ type Querier interface {
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
 	GetPlace(ctx context.Context, arg GetPlaceParams) (GetPlaceRow, error)
+	GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserBySubject(ctx context.Context, oidcSubject string) (User, error)
 	ListActiveOutingsBefore(ctx context.Context, arg ListActiveOutingsBeforeParams) ([]Journey, error)
@@ -44,6 +45,7 @@ type Querier interface {
 	UpdatePlace(ctx context.Context, arg UpdatePlaceParams) (UpdatePlaceRow, error)
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
+	UpsertReverseGeocodeCache(ctx context.Context, arg UpsertReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
 	UpsertUserFromIdentity(ctx context.Context, arg UpsertUserFromIdentityParams) (User, error)
 }
 

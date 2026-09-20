@@ -126,6 +126,15 @@ type Place struct {
 	ClientRequestID pgtype.UUID        `json:"client_request_id"`
 }
 
+type ReverseGeocodeCache struct {
+	LatitudeE5      int32              `json:"latitude_e5"`
+	LongitudeE5     int32              `json:"longitude_e5"`
+	DisplayName     string             `json:"display_name"`
+	ProviderPayload []byte             `json:"provider_payload"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type RouteSegment struct {
 	ID            pgtype.UUID        `json:"id"`
 	JourneyID     pgtype.UUID        `json:"journey_id"`

@@ -6,18 +6,22 @@ import (
 )
 
 const (
-	defaultAuthMode    = "oidc"
-	defaultDatabaseURL = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
-	defaultHTTPAddr    = ":8080"
+	defaultAuthMode           = "oidc"
+	defaultDatabaseURL        = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
+	defaultHTTPAddr           = ":8080"
+	defaultNominatimURL       = "https://nominatim.openstreetmap.org"
+	defaultNominatimUserAgent = "Pinerary/0.1"
 )
 
 type Config struct {
-	AllowedOrigins []string
-	AuthMode       string
-	DatabaseURL    string
-	HTTPAddr       string
-	OIDCAudience   string
-	OIDCIssuerURL  string
+	AllowedOrigins     []string
+	AuthMode           string
+	DatabaseURL        string
+	HTTPAddr           string
+	NominatimURL       string
+	NominatimUserAgent string
+	OIDCAudience       string
+	OIDCIssuerURL      string
 }
 
 func Load() Config {
@@ -27,12 +31,14 @@ func Load() Config {
 	}
 
 	return Config{
-		AllowedOrigins: splitList(os.Getenv("PINERARY_ALLOWED_ORIGINS")),
-		AuthMode:       valueOrDefault("PINERARY_AUTH_MODE", defaultAuthMode),
-		DatabaseURL:    valueOrDefault("PINERARY_DATABASE_URL", defaultDatabaseURL),
-		HTTPAddr:       httpAddr,
-		OIDCAudience:   os.Getenv("PINERARY_OIDC_AUDIENCE"),
-		OIDCIssuerURL:  os.Getenv("PINERARY_OIDC_ISSUER_URL"),
+		AllowedOrigins:     splitList(os.Getenv("PINERARY_ALLOWED_ORIGINS")),
+		AuthMode:           valueOrDefault("PINERARY_AUTH_MODE", defaultAuthMode),
+		DatabaseURL:        valueOrDefault("PINERARY_DATABASE_URL", defaultDatabaseURL),
+		HTTPAddr:           httpAddr,
+		NominatimURL:       valueOrDefault("PINERARY_NOMINATIM_URL", defaultNominatimURL),
+		NominatimUserAgent: valueOrDefault("PINERARY_NOMINATIM_USER_AGENT", defaultNominatimUserAgent),
+		OIDCAudience:       os.Getenv("PINERARY_OIDC_AUDIENCE"),
+		OIDCIssuerURL:      os.Getenv("PINERARY_OIDC_ISSUER_URL"),
 	}
 }
 
