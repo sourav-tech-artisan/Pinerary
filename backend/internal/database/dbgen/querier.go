@@ -19,11 +19,14 @@ type Querier interface {
 	CreateJourney(ctx context.Context, arg CreateJourneyParams) (Journey, error)
 	CreateJourneyStop(ctx context.Context, arg CreateJourneyStopParams) (CreateJourneyStopRow, error)
 	CreatePlace(ctx context.Context, arg CreatePlaceParams) (CreatePlaceRow, error)
+	CreateRouteSegment(ctx context.Context, arg CreateRouteSegmentParams) (pgtype.UUID, error)
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) (int64, error)
 	DeletePlace(ctx context.Context, arg DeletePlaceParams) (int64, error)
+	DeleteRouteSegments(ctx context.Context, journeyID pgtype.UUID) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (BackgroundJob, error)
 	ExpireJourney(ctx context.Context, arg ExpireJourneyParams) (Journey, error)
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
+	GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
 	GetPlace(ctx context.Context, arg GetPlaceParams) (GetPlaceRow, error)
 	GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
@@ -35,6 +38,7 @@ type Querier interface {
 	ListJourneyStops(ctx context.Context, arg ListJourneyStopsParams) ([]ListJourneyStopsRow, error)
 	ListJourneys(ctx context.Context, arg ListJourneysParams) ([]Journey, error)
 	ListLocationSamples(ctx context.Context, arg ListLocationSamplesParams) ([]ListLocationSamplesRow, error)
+	ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error)
 	ListPlaces(ctx context.Context, arg ListPlacesParams) ([]ListPlacesRow, error)
 	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	LockActiveJourney(ctx context.Context, arg LockActiveJourneyParams) (pgtype.UUID, error)
@@ -44,6 +48,7 @@ type Querier interface {
 	RetryJob(ctx context.Context, arg RetryJobParams) error
 	UpdateJourneyLabel(ctx context.Context, arg UpdateJourneyLabelParams) (Journey, error)
 	UpdateJourneyStopMetadata(ctx context.Context, arg UpdateJourneyStopMetadataParams) (UpdateJourneyStopMetadataRow, error)
+	UpdateLocationSampleQuality(ctx context.Context, arg UpdateLocationSampleQualityParams) error
 	UpdatePlace(ctx context.Context, arg UpdatePlaceParams) (UpdatePlaceRow, error)
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)

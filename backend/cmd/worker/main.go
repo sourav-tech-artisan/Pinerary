@@ -14,6 +14,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/jobs"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
 func main() {
@@ -40,6 +41,8 @@ func run() error {
 	workerID := fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), time.Now().Unix())
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	runner := jobs.NewRunner(dbgen.New(pool), logger, workerID)
+	trackProcessor := tracking.NewProcessor(pool)
+	runner.Register("track.process", trackProcessor.HandleJob)
 
 	logger.Info("starting worker", "worker_id", workerID)
 	return runner.Run(ctx)

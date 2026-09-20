@@ -73,6 +73,7 @@ func NewRouter(config RouterConfig) *gin.Engine {
 
 	tracking := trackingHandler{service: config.TrackingService}
 	api.POST("/journeys/:journeyId/locations/batch", tracking.ingest)
+	api.GET("/journeys/:journeyId/route", tracking.route)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

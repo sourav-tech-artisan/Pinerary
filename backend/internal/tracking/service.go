@@ -40,6 +40,17 @@ type IngestResult struct {
 	Flagged    int `json:"flagged"`
 }
 
+type RouteSegment struct {
+	ID           uuid.UUID       `json:"id"`
+	Number       int32           `json:"number"`
+	StartedAt    time.Time       `json:"started_at"`
+	EndedAt      time.Time       `json:"ended_at"`
+	Geometry     json.RawMessage `json:"geometry"`
+	DistanceM    float64         `json:"distance_m"`
+	DurationS    int32           `json:"duration_s"`
+	IsMapMatched bool            `json:"is_map_matched"`
+}
+
 type Service struct {
 	pool *pgxpool.Pool
 	now  func() time.Time
@@ -115,6 +126,25 @@ func (s *Service) Ingest(ctx context.Context, ownerID, journeyID uuid.UUID, poin
 	return IngestResult{
 		Received: len(points), Inserted: int(inserted), Duplicates: len(points) - int(inserted), Flagged: flagged,
 	}, nil
+}
+
+func (s *Service) Route(ctx context.Context, ownerID, journeyID uuid.UUID) ([]RouteSegment, error) {
+	rows, err := dbgen.New(s.pool).GetJourneyRoute(ctx, dbgen.GetJourneyRouteParams{
+		JourneyID: pgUUID(journeyID), OwnerID: pgUUID(ownerID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get journey route: %w", err)
+	}
+	result := make([]RouteSegment, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, RouteSegment{
+			ID: uuid.UUID(row.ID.Bytes), Number: row.SegmentNumber,
+			StartedAt: row.StartedAt.Time, EndedAt: row.EndedAt.Time,
+			Geometry: json.RawMessage(row.Geojson), DistanceM: row.DistanceM,
+			DurationS: row.DurationS, IsMapMatched: row.IsMapMatched,
+		})
+	}
+	return result, nil
 }
 
 func (s *Service) classify(point Point) (classifiedPoint, error) {

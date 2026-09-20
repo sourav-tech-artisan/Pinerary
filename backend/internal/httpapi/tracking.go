@@ -13,6 +13,21 @@ import (
 
 type trackingService interface {
 	Ingest(context.Context, uuid.UUID, uuid.UUID, []tracking.Point) (tracking.IngestResult, error)
+	Route(context.Context, uuid.UUID, uuid.UUID) ([]tracking.RouteSegment, error)
+}
+
+func (h trackingHandler) route(ctx *gin.Context) {
+	journeyID, ok := pathUUID(ctx, "journeyId")
+	if !ok {
+		return
+	}
+	principal, _ := identity.PrincipalFromContext(ctx.Request.Context())
+	segments, err := h.service.Route(ctx.Request.Context(), principal.UserID, journeyID)
+	if err != nil {
+		writeServiceError(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"segments": segments})
 }
 
 type trackingHandler struct {

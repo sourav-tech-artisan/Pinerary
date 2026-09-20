@@ -11,6 +11,106 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createRouteSegment = `-- name: CreateRouteSegment :one
+INSERT INTO route_segments (
+    journey_id, segment_number, started_at, ended_at, raw_path, distance_m, duration_s
+)
+VALUES (
+    $1, $2, $3, $4, ST_GeogFromText($7), $5, $6
+)
+RETURNING id
+`
+
+type CreateRouteSegmentParams struct {
+	JourneyID     pgtype.UUID        `json:"journey_id"`
+	SegmentNumber int32              `json:"segment_number"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	EndedAt       pgtype.Timestamptz `json:"ended_at"`
+	DistanceM     float64            `json:"distance_m"`
+	DurationS     int32              `json:"duration_s"`
+	RawWkt        interface{}        `json:"raw_wkt"`
+}
+
+func (q *Queries) CreateRouteSegment(ctx context.Context, arg CreateRouteSegmentParams) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, createRouteSegment,
+		arg.JourneyID,
+		arg.SegmentNumber,
+		arg.StartedAt,
+		arg.EndedAt,
+		arg.DistanceM,
+		arg.DurationS,
+		arg.RawWkt,
+	)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
+const deleteRouteSegments = `-- name: DeleteRouteSegments :exec
+DELETE FROM route_segments WHERE journey_id = $1
+`
+
+func (q *Queries) DeleteRouteSegments(ctx context.Context, journeyID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRouteSegments, journeyID)
+	return err
+}
+
+const getJourneyRoute = `-- name: GetJourneyRoute :many
+SELECT segments.id, segments.segment_number, segments.started_at, segments.ended_at,
+    ST_AsGeoJSON(coalesce(segments.matched_path, segments.raw_path)::geometry)::text AS geojson,
+    segments.distance_m, segments.duration_s,
+    (segments.matched_path IS NOT NULL)::boolean AS is_map_matched
+FROM route_segments AS segments
+JOIN journeys ON journeys.id = segments.journey_id
+WHERE segments.journey_id = $1 AND journeys.owner_id = $2
+ORDER BY segments.segment_number
+`
+
+type GetJourneyRouteParams struct {
+	JourneyID pgtype.UUID `json:"journey_id"`
+	OwnerID   pgtype.UUID `json:"owner_id"`
+}
+
+type GetJourneyRouteRow struct {
+	ID            pgtype.UUID        `json:"id"`
+	SegmentNumber int32              `json:"segment_number"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	EndedAt       pgtype.Timestamptz `json:"ended_at"`
+	Geojson       string             `json:"geojson"`
+	DistanceM     float64            `json:"distance_m"`
+	DurationS     int32              `json:"duration_s"`
+	IsMapMatched  bool               `json:"is_map_matched"`
+}
+
+func (q *Queries) GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error) {
+	rows, err := q.db.Query(ctx, getJourneyRoute, arg.JourneyID, arg.OwnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetJourneyRouteRow{}
+	for rows.Next() {
+		var i GetJourneyRouteRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SegmentNumber,
+			&i.StartedAt,
+			&i.EndedAt,
+			&i.Geojson,
+			&i.DistanceM,
+			&i.DurationS,
+			&i.IsMapMatched,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertLocationSamples = `-- name: InsertLocationSamples :execrows
 INSERT INTO location_samples (
     journey_id, user_id, sample_id, captured_at, location,
@@ -105,4 +205,76 @@ func (q *Queries) ListLocationSamples(ctx context.Context, arg ListLocationSampl
 		return nil, err
 	}
 	return items, nil
+}
+
+const listLocationSamplesForProcessing = `-- name: ListLocationSamplesForProcessing :many
+SELECT samples.id, samples.sample_id, samples.captured_at,
+    ST_Y(samples.location::geometry)::double precision AS latitude,
+    ST_X(samples.location::geometry)::double precision AS longitude,
+    samples.accuracy_m, samples.speed_mps, samples.heading_deg,
+    samples.is_accepted, samples.rejection_reason
+FROM location_samples AS samples
+WHERE samples.journey_id = $1
+ORDER BY samples.captured_at, samples.id
+`
+
+type ListLocationSamplesForProcessingRow struct {
+	ID              int64              `json:"id"`
+	SampleID        pgtype.UUID        `json:"sample_id"`
+	CapturedAt      pgtype.Timestamptz `json:"captured_at"`
+	Latitude        float64            `json:"latitude"`
+	Longitude       float64            `json:"longitude"`
+	AccuracyM       pgtype.Float4      `json:"accuracy_m"`
+	SpeedMps        pgtype.Float4      `json:"speed_mps"`
+	HeadingDeg      pgtype.Float4      `json:"heading_deg"`
+	IsAccepted      bool               `json:"is_accepted"`
+	RejectionReason pgtype.Text        `json:"rejection_reason"`
+}
+
+func (q *Queries) ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error) {
+	rows, err := q.db.Query(ctx, listLocationSamplesForProcessing, journeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLocationSamplesForProcessingRow{}
+	for rows.Next() {
+		var i ListLocationSamplesForProcessingRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SampleID,
+			&i.CapturedAt,
+			&i.Latitude,
+			&i.Longitude,
+			&i.AccuracyM,
+			&i.SpeedMps,
+			&i.HeadingDeg,
+			&i.IsAccepted,
+			&i.RejectionReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateLocationSampleQuality = `-- name: UpdateLocationSampleQuality :exec
+UPDATE location_samples
+SET is_accepted = $2, rejection_reason = $3
+WHERE id = $1
+`
+
+type UpdateLocationSampleQualityParams struct {
+	ID              int64       `json:"id"`
+	IsAccepted      bool        `json:"is_accepted"`
+	RejectionReason pgtype.Text `json:"rejection_reason"`
+}
+
+func (q *Queries) UpdateLocationSampleQuality(ctx context.Context, arg UpdateLocationSampleQualityParams) error {
+	_, err := q.db.Exec(ctx, updateLocationSampleQuality, arg.ID, arg.IsAccepted, arg.RejectionReason)
+	return err
 }

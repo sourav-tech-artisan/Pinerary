@@ -196,6 +196,14 @@ paths:
                   flagged: {type: integer}
         default:
           $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/route:
+    parameters:
+      - $ref: "#/components/parameters/JourneyID"
+    get:
+      operationId: getJourneyRoute
+      responses:
+        "200": {description: Cleaned route segments, map-matched when available}
+        default: {$ref: "#/components/responses/Error"}
   /journeys/{journeyId}/stops:
     parameters:
       - $ref: "#/components/parameters/JourneyID"
