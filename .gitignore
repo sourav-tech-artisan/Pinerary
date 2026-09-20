@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+.env
+.env.*
+!.env.example
+
+backend/bin/
+backend/coverage.out
+backend/coverage.html
+backend/tmp/

@@ -28,5 +28,14 @@ curl http://localhost:8080/health/live
 ## Test
 
 ```bash
-go test ./...
+make test
+```
+
+`make fmt-check`, `make vet`, and `make lint` run the same quality gates used in CI.
+
+## Container
+
+```bash
+docker build -t pinerary-api .
+docker run --rm -p 8080:8080 pinerary-api
 ```
