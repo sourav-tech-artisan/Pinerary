@@ -21,3 +21,16 @@ func TestLoadUsesConfiguredHTTPAddress(t *testing.T) {
 		t.Fatalf("expected configured HTTP address, got %q", cfg.HTTPAddr)
 	}
 }
+
+func TestLoadParsesAllowedOrigins(t *testing.T) {
+	t.Setenv("PINERARY_ALLOWED_ORIGINS", " https://app.example.com, http://localhost:3000 ,")
+
+	cfg := Load()
+
+	if len(cfg.AllowedOrigins) != 2 {
+		t.Fatalf("expected two allowed origins, got %#v", cfg.AllowedOrigins)
+	}
+	if cfg.AllowedOrigins[0] != "https://app.example.com" {
+		t.Fatalf("unexpected first allowed origin %q", cfg.AllowedOrigins[0])
+	}
+}

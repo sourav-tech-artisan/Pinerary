@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,24 +16,36 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
+const (
+	readHeaderTimeout = 5 * time.Second
+	readTimeout       = 30 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = 2 * time.Minute
+)
+
 func main() {
 	if err := run(); err != nil {
-		log.Printf("API stopped with an error: %v", err)
+		slog.Error("API stopped with an error", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
 	cfg := config.Load()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	server := &http.Server{
-		Addr:    cfg.HTTPAddr,
-		Handler: httpapi.NewRouter(),
+		Addr:              cfg.HTTPAddr,
+		Handler:           httpapi.NewRouter(httpapi.RouterConfig{AllowedOrigins: cfg.AllowedOrigins, Logger: logger}),
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
 	}
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		log.Printf("starting API on %s", cfg.HTTPAddr)
+		logger.Info("starting API", "address", cfg.HTTPAddr)
 		serverErrors <- server.ListenAndServe()
 	}()
 
@@ -56,7 +68,7 @@ func run() error {
 	shutdownContext, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	log.Print("shutting down API")
+	logger.Info("shutting down API")
 	if err := server.Shutdown(shutdownContext); err != nil {
 		return err
 	}
