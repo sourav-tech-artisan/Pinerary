@@ -43,6 +43,8 @@ make test
 ```
 
 `make fmt-check`, `make vet`, and `make lint` run the same quality gates used in CI.
+SQL queries live in `internal/database/queries`; run `make generate` after changing them
+or a migration. Generated query code is committed so normal builds do not require sqlc.
 
 ## Container
 

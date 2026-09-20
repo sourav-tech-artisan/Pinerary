@@ -1,4 +1,4 @@
-.PHONY: build db-down db-up fmt fmt-check lint migrate run test vet
+.PHONY: build db-down db-up fmt fmt-check generate lint migrate run test vet
 
 build:
 	go build -o bin/pinerary-api ./cmd/api
@@ -14,6 +14,9 @@ fmt:
 
 fmt-check:
 	@test -z "$$(gofmt -l $$(find . -name '*.go' -not -path './vendor/*'))"
+
+generate:
+	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate
 
 lint:
 	golangci-lint run ./...

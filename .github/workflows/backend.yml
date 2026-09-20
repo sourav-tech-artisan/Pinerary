@@ -27,6 +27,8 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
       - run: make fmt-check
+      - run: make generate
+      - run: git diff --exit-code
       - run: make test
       - run: make vet
 
