@@ -20,7 +20,31 @@ paths:
                 $ref: "#/components/schemas/User"
         default:
           $ref: "#/components/responses/Error"
+    patch:
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name, default_transport_mode]
+              properties:
+                display_name: {type: string, maxLength: 160}
+                default_transport_mode: {$ref: "#/components/schemas/TransportMode"}
+      responses:
+        "200":
+          description: Updated current user
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/User"}
+        default: {$ref: "#/components/responses/Error"}
   /devices:
+    get:
+      operationId: listDevices
+      responses:
+        "200": {description: Registered devices}
+        default: {$ref: "#/components/responses/Error"}
     post:
       operationId: registerDevice
       requestBody:
@@ -34,6 +58,14 @@ paths:
           description: Device registered
         default:
           $ref: "#/components/responses/Error"
+  /devices/{deviceId}:
+    delete:
+      operationId: deleteDevice
+      parameters:
+        - {name: deviceId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "204": {description: Device removed}
+        default: {$ref: "#/components/responses/Error"}
   /journeys:
     get:
       operationId: listJourneys

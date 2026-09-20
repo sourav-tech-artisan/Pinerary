@@ -15,6 +15,7 @@ type RouterConfig struct {
 	Logger          *slog.Logger
 	Ready           func(context.Context) error
 	UserProvisioner userProvisioner
+	ProfileStore    profileStore
 	Verifier        identity.Verifier
 }
 
@@ -39,6 +40,12 @@ func NewRouter(config RouterConfig) *gin.Engine {
 
 	api := router.Group("/api/v1")
 	api.Use(authenticate(config.Verifier, config.UserProvisioner))
+	profile := profileHandler{store: config.ProfileStore}
+	api.GET("/me", profile.getMe)
+	api.PATCH("/me", profile.updateMe)
+	api.POST("/devices", profile.registerDevice)
+	api.GET("/devices", profile.listDevices)
+	api.DELETE("/devices/:deviceId", profile.deleteDevice)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

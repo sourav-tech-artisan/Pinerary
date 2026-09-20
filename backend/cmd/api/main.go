@@ -51,13 +51,15 @@ func run() error {
 		return err
 	}
 
+	queries := dbgen.New(databasePool)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
 			AllowedOrigins:  cfg.AllowedOrigins,
 			Logger:          logger,
 			Ready:           databasePool.Ping,
-			UserProvisioner: dbgen.New(databasePool),
+			UserProvisioner: queries,
+			ProfileStore:    queries,
 			Verifier:        verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
