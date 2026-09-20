@@ -6,14 +6,18 @@ import (
 )
 
 const (
+	defaultAuthMode    = "oidc"
 	defaultDatabaseURL = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
 	defaultHTTPAddr    = ":8080"
 )
 
 type Config struct {
 	AllowedOrigins []string
+	AuthMode       string
 	DatabaseURL    string
 	HTTPAddr       string
+	OIDCAudience   string
+	OIDCIssuerURL  string
 }
 
 func Load() Config {
@@ -24,8 +28,11 @@ func Load() Config {
 
 	return Config{
 		AllowedOrigins: splitList(os.Getenv("PINERARY_ALLOWED_ORIGINS")),
+		AuthMode:       valueOrDefault("PINERARY_AUTH_MODE", defaultAuthMode),
 		DatabaseURL:    valueOrDefault("PINERARY_DATABASE_URL", defaultDatabaseURL),
 		HTTPAddr:       httpAddr,
+		OIDCAudience:   os.Getenv("PINERARY_OIDC_AUDIENCE"),
+		OIDCIssuerURL:  os.Getenv("PINERARY_OIDC_ISSUER_URL"),
 	}
 }
 

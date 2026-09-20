@@ -7,12 +7,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 )
 
 type RouterConfig struct {
-	AllowedOrigins []string
-	Logger         *slog.Logger
-	Ready          func(context.Context) error
+	AllowedOrigins  []string
+	Logger          *slog.Logger
+	Ready           func(context.Context) error
+	UserProvisioner userProvisioner
+	Verifier        identity.Verifier
 }
 
 func NewRouter(config RouterConfig) *gin.Engine {
@@ -33,6 +36,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	router.NoRoute(notFound)
 	router.NoMethod(methodNotAllowed)
 	router.GET("/openapi.yaml", serveOpenAPI)
+
+	api := router.Group("/api/v1")
+	api.Use(authenticate(config.Verifier, config.UserProvisioner))
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,7 +13,9 @@ import (
 
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/config"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/httpapi"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -43,12 +46,19 @@ func run() error {
 	}
 	defer databasePool.Close()
 
+	verifier, err := buildVerifier(startupContext, cfg)
+	if err != nil {
+		return err
+	}
+
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
-			AllowedOrigins: cfg.AllowedOrigins,
-			Logger:         logger,
-			Ready:          databasePool.Ping,
+			AllowedOrigins:  cfg.AllowedOrigins,
+			Logger:          logger,
+			Ready:           databasePool.Ping,
+			UserProvisioner: dbgen.New(databasePool),
+			Verifier:        verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
@@ -87,4 +97,15 @@ func run() error {
 	}
 
 	return nil
+}
+
+func buildVerifier(ctx context.Context, cfg config.Config) (identity.Verifier, error) {
+	switch cfg.AuthMode {
+	case "oidc":
+		return identity.NewOIDCVerifier(ctx, cfg.OIDCIssuerURL, cfg.OIDCAudience)
+	case "development":
+		return identity.DevelopmentVerifier{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported authentication mode %q", cfg.AuthMode)
+	}
 }
