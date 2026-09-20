@@ -20,6 +20,7 @@ type RouterConfig struct {
 	PlaceService     placeService
 	GeocodingService geocodingService
 	TrackingService  trackingService
+	MediaService     mediaService
 	Verifier         identity.Verifier
 }
 
@@ -74,6 +75,10 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	tracking := trackingHandler{service: config.TrackingService}
 	api.POST("/journeys/:journeyId/locations/batch", tracking.ingest)
 	api.GET("/journeys/:journeyId/route", tracking.route)
+
+	media := mediaHandler{service: config.MediaService}
+	api.POST("/photos/upload-intents", media.reserve)
+	api.POST("/photos/:photoId/complete", media.complete)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

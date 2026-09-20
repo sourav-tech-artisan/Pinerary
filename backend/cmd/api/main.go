@@ -18,6 +18,8 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/httpapi"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/media"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
@@ -64,6 +66,16 @@ func run() error {
 	}
 	geocodingService := geocoding.NewService(queries, nominatim)
 	trackingService := tracking.NewService(databasePool)
+	objectStore, err := objectstore.NewMinIOStore(
+		cfg.ObjectEndpoint, cfg.ObjectAccessKey, cfg.ObjectSecretKey, cfg.ObjectBucket, cfg.ObjectUseTLS,
+	)
+	if err != nil {
+		return err
+	}
+	if err := objectStore.EnsureBucket(startupContext); err != nil {
+		return err
+	}
+	mediaService := media.NewService(databasePool, objectStore, cfg.MaxPhotoBytes)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
@@ -76,6 +88,7 @@ func run() error {
 			PlaceService:     placeService,
 			GeocodingService: geocodingService,
 			TrackingService:  trackingService,
+			MediaService:     mediaService,
 			Verifier:         verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,

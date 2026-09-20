@@ -15,9 +15,11 @@ type Querier interface {
 	ClaimNextJobs(ctx context.Context, arg ClaimNextJobsParams) ([]BackgroundJob, error)
 	CompleteJob(ctx context.Context, id int64) error
 	CompleteJourney(ctx context.Context, arg CompleteJourneyParams) (Journey, error)
+	CompletePhotoUpload(ctx context.Context, arg CompletePhotoUploadParams) (Photo, error)
 	ConvertOutingToTrip(ctx context.Context, arg ConvertOutingToTripParams) (Journey, error)
 	CreateJourney(ctx context.Context, arg CreateJourneyParams) (Journey, error)
 	CreateJourneyStop(ctx context.Context, arg CreateJourneyStopParams) (CreateJourneyStopRow, error)
+	CreatePhotoUpload(ctx context.Context, arg CreatePhotoUploadParams) (Photo, error)
 	CreatePlace(ctx context.Context, arg CreatePlaceParams) (CreatePlaceRow, error)
 	CreateRouteSegment(ctx context.Context, arg CreateRouteSegmentParams) (pgtype.UUID, error)
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) (int64, error)
@@ -28,6 +30,7 @@ type Querier interface {
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
 	GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
+	GetPhotoForOwner(ctx context.Context, arg GetPhotoForOwnerParams) (Photo, error)
 	GetPlace(ctx context.Context, arg GetPlaceParams) (GetPlaceRow, error)
 	GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
@@ -41,9 +44,12 @@ type Querier interface {
 	ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error)
 	ListPlaces(ctx context.Context, arg ListPlacesParams) ([]ListPlacesRow, error)
 	ListRouteSegmentsForMatching(ctx context.Context, journeyID pgtype.UUID) ([]ListRouteSegmentsForMatchingRow, error)
+	ListStopPhotos(ctx context.Context, arg ListStopPhotosParams) ([]Photo, error)
 	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	LockActiveJourney(ctx context.Context, arg LockActiveJourneyParams) (pgtype.UUID, error)
 	MarkOutboxEventPublished(ctx context.Context, id int64) error
+	MarkPhotoFailed(ctx context.Context, id pgtype.UUID) error
+	MarkPhotoProcessed(ctx context.Context, arg MarkPhotoProcessedParams) (Photo, error)
 	NextJourneyStopSequence(ctx context.Context, journeyID pgtype.UUID) (int64, error)
 	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
 	RetryJob(ctx context.Context, arg RetryJobParams) error

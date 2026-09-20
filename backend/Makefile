@@ -7,7 +7,7 @@ db-down:
 	docker compose -f ../infra/compose.yaml down
 
 db-up:
-	docker compose -f ../infra/compose.yaml up -d postgres
+	docker compose -f ../infra/compose.yaml up -d postgres minio
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')

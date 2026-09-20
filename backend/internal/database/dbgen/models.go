@@ -100,18 +100,20 @@ type OutboxEvent struct {
 }
 
 type Photo struct {
-	ID           pgtype.UUID        `json:"id"`
-	OwnerID      pgtype.UUID        `json:"owner_id"`
-	JourneyID    pgtype.UUID        `json:"journey_id"`
-	StopID       pgtype.UUID        `json:"stop_id"`
-	ObjectKey    string             `json:"object_key"`
-	ThumbnailKey pgtype.Text        `json:"thumbnail_key"`
-	ContentType  string             `json:"content_type"`
-	ByteSize     pgtype.Int8        `json:"byte_size"`
-	Status       string             `json:"status"`
-	CapturedAt   pgtype.Timestamptz `json:"captured_at"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ID              pgtype.UUID        `json:"id"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	JourneyID       pgtype.UUID        `json:"journey_id"`
+	StopID          pgtype.UUID        `json:"stop_id"`
+	ObjectKey       string             `json:"object_key"`
+	ThumbnailKey    pgtype.Text        `json:"thumbnail_key"`
+	ContentType     string             `json:"content_type"`
+	ByteSize        pgtype.Int8        `json:"byte_size"`
+	Status          string             `json:"status"`
+	CapturedAt      pgtype.Timestamptz `json:"captured_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	ClientRequestID pgtype.UUID        `json:"client_request_id"`
+	ChecksumSha256  pgtype.Text        `json:"checksum_sha256"`
 }
 
 type Place struct {

@@ -2,16 +2,22 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
 const (
-	defaultAuthMode           = "oidc"
-	defaultDatabaseURL        = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
-	defaultHTTPAddr           = ":8080"
-	defaultNominatimURL       = "https://nominatim.openstreetmap.org"
-	defaultNominatimUserAgent = "Pinerary/0.1"
-	defaultValhallaURL        = "http://localhost:8002"
+	defaultAuthMode                 = "oidc"
+	defaultDatabaseURL              = "postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable"
+	defaultHTTPAddr                 = ":8080"
+	defaultNominatimURL             = "https://nominatim.openstreetmap.org"
+	defaultNominatimUserAgent       = "Pinerary/0.1"
+	defaultValhallaURL              = "http://localhost:8002"
+	defaultObjectEndpoint           = "localhost:9000"
+	defaultObjectAccessKey          = "pinerary"
+	defaultObjectSecretKey          = "pinerary-secret"
+	defaultObjectBucket             = "pinerary-media"
+	defaultMaxPhotoBytes      int64 = 15 << 20
 )
 
 type Config struct {
@@ -24,6 +30,12 @@ type Config struct {
 	OIDCAudience       string
 	OIDCIssuerURL      string
 	ValhallaURL        string
+	ObjectEndpoint     string
+	ObjectAccessKey    string
+	ObjectSecretKey    string
+	ObjectBucket       string
+	ObjectUseTLS       bool
+	MaxPhotoBytes      int64
 }
 
 func Load() Config {
@@ -42,7 +54,21 @@ func Load() Config {
 		OIDCAudience:       os.Getenv("PINERARY_OIDC_AUDIENCE"),
 		OIDCIssuerURL:      os.Getenv("PINERARY_OIDC_ISSUER_URL"),
 		ValhallaURL:        valueOrDefault("PINERARY_VALHALLA_URL", defaultValhallaURL),
+		ObjectEndpoint:     valueOrDefault("PINERARY_OBJECT_ENDPOINT", defaultObjectEndpoint),
+		ObjectAccessKey:    valueOrDefault("PINERARY_OBJECT_ACCESS_KEY", defaultObjectAccessKey),
+		ObjectSecretKey:    valueOrDefault("PINERARY_OBJECT_SECRET_KEY", defaultObjectSecretKey),
+		ObjectBucket:       valueOrDefault("PINERARY_OBJECT_BUCKET", defaultObjectBucket),
+		ObjectUseTLS:       strings.EqualFold(os.Getenv("PINERARY_OBJECT_USE_TLS"), "true"),
+		MaxPhotoBytes:      positiveInt64OrDefault("PINERARY_MAX_PHOTO_BYTES", defaultMaxPhotoBytes),
 	}
+}
+
+func positiveInt64OrDefault(key string, fallback int64) int64 {
+	value, err := strconv.ParseInt(os.Getenv(key), 10, 64)
+	if err != nil || value <= 0 {
+		return fallback
+	}
+	return value
 }
 
 func valueOrDefault(key, fallback string) string {

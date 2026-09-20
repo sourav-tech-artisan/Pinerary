@@ -303,6 +303,19 @@ paths:
   /photos/upload-intents:
     post:
       operationId: createPhotoUploadIntent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [journey_id, client_request_id, content_type]
+              properties:
+                journey_id: {type: string, format: uuid}
+                stop_id: {type: [string, "null"], format: uuid}
+                client_request_id: {type: string, format: uuid}
+                content_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
+                captured_at: {type: [string, "null"], format: date-time}
       responses:
         "201":
           description: Short-lived signed upload URL
@@ -313,6 +326,14 @@ paths:
       - {name: photoId, in: path, required: true, schema: {type: string, format: uuid}}
     post:
       operationId: completePhotoUpload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                checksum_sha256: {type: string}
       responses:
         "202":
           description: Upload recorded and processing queued
