@@ -38,6 +38,9 @@ type Config struct {
 	ObjectUseTLS       bool
 	MaxPhotoBytes      int64
 	PublicBaseURL      string
+	VAPIDSubscriber    string
+	VAPIDPublicKey     string
+	VAPIDPrivateKey    string
 }
 
 func Load() Config {
@@ -63,6 +66,9 @@ func Load() Config {
 		ObjectUseTLS:       strings.EqualFold(os.Getenv("PINERARY_OBJECT_USE_TLS"), "true"),
 		MaxPhotoBytes:      positiveInt64OrDefault("PINERARY_MAX_PHOTO_BYTES", defaultMaxPhotoBytes),
 		PublicBaseURL:      strings.TrimRight(valueOrDefault("PINERARY_PUBLIC_BASE_URL", defaultPublicBaseURL), "/"),
+		VAPIDSubscriber:    os.Getenv("PINERARY_VAPID_SUBSCRIBER"),
+		VAPIDPublicKey:     os.Getenv("PINERARY_VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey:    os.Getenv("PINERARY_VAPID_PRIVATE_KEY"),
 	}
 }
 

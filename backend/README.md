@@ -46,6 +46,9 @@ make test
 SQL queries live in `internal/database/queries`; run `make generate` after changing them
 or a migration. Generated query code is committed so normal builds do not require sqlc.
 
+Generate free Web Push credentials with `make vapid`, then place the printed values in
+your local environment along with a `PINERARY_VAPID_SUBSCRIBER` contact URI.
+
 ## Container
 
 ```bash

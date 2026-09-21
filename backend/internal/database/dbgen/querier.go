@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	AddOutboxEvent(ctx context.Context, arg AddOutboxEventParams) (OutboxEvent, error)
 	ClaimNextJobs(ctx context.Context, arg ClaimNextJobsParams) ([]BackgroundJob, error)
+	ClearDevicePushSubscription(ctx context.Context, id pgtype.UUID) error
 	CompleteJob(ctx context.Context, id int64) error
 	CompleteJourney(ctx context.Context, arg CompleteJourneyParams) (Journey, error)
 	CompletePhotoUpload(ctx context.Context, arg CompletePhotoUploadParams) (Photo, error)
@@ -30,6 +31,7 @@ type Querier interface {
 	ExpireJourney(ctx context.Context, arg ExpireJourneyParams) (Journey, error)
 	GetItineraryShareByTokenHash(ctx context.Context, tokenHash []byte) (ItineraryShare, error)
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
+	GetJourneyByID(ctx context.Context, id pgtype.UUID) (Journey, error)
 	GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
 	GetPhotoByID(ctx context.Context, id pgtype.UUID) (Photo, error)
@@ -47,6 +49,7 @@ type Querier interface {
 	ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error)
 	ListPhotosForShare(ctx context.Context, arg ListPhotosForShareParams) ([]ListPhotosForShareRow, error)
 	ListPlaces(ctx context.Context, arg ListPlacesParams) ([]ListPlacesRow, error)
+	ListPushSubscriptionsForUser(ctx context.Context, userID pgtype.UUID) ([]ListPushSubscriptionsForUserRow, error)
 	ListRouteSegmentsForMatching(ctx context.Context, journeyID pgtype.UUID) ([]ListRouteSegmentsForMatchingRow, error)
 	ListStopPhotos(ctx context.Context, arg ListStopPhotosParams) ([]Photo, error)
 	ListUnpublishedEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)

@@ -2,6 +2,7 @@ package journeys
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 )
 
@@ -26,6 +29,7 @@ type Store interface {
 }
 
 type Service struct {
+	pool  *pgxpool.Pool
 	store Store
 	now   func() time.Time
 }
@@ -37,8 +41,8 @@ type CreateInput struct {
 	Label           string
 }
 
-func NewService(store Store) *Service {
-	return &Service{store: store, now: time.Now}
+func NewService(pool *pgxpool.Pool) *Service {
+	return &Service{pool: pool, store: dbgen.New(pool), now: time.Now}
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (Journey, error) {
@@ -49,12 +53,42 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Journey, error
 		return Journey{}, fmt.Errorf("client request ID is required")
 	}
 
-	row, err := s.store.CreateJourney(ctx, dbgen.CreateJourneyParams{
-		OwnerID:         toPGUUID(input.OwnerID),
-		ClientRequestID: toPGUUID(input.ClientRequestID),
-		Kind:            string(input.Kind),
-		Label:           strings.TrimSpace(input.Label),
-		StartedAt:       pgtype.Timestamptz{Time: s.now().UTC(), Valid: true},
+	startedAt := s.now().UTC()
+	var row dbgen.Journey
+	err := database.WithinTransaction(ctx, s.pool, func(queries *dbgen.Queries) error {
+		var createErr error
+		row, createErr = queries.CreateJourney(ctx, dbgen.CreateJourneyParams{
+			OwnerID:         toPGUUID(input.OwnerID),
+			ClientRequestID: toPGUUID(input.ClientRequestID),
+			Kind:            string(input.Kind),
+			Label:           strings.TrimSpace(input.Label),
+			StartedAt:       pgtype.Timestamptz{Time: startedAt, Valid: true},
+		})
+		if createErr != nil {
+			return createErr
+		}
+		if input.Kind != KindOuting {
+			return nil
+		}
+		payload, _ := json.Marshal(map[string]uuid.UUID{"journey_id": uuid.UUID(row.ID.Bytes)})
+		for _, job := range []struct {
+			jobType string
+			runAt   time.Time
+			suffix  string
+		}{
+			{jobType: "outing.warn", runAt: startedAt.Add(23 * time.Hour), suffix: "warn"},
+			{jobType: "outing.expire", runAt: startedAt.Add(24 * time.Hour), suffix: "expire"},
+		} {
+			_, enqueueErr := queries.EnqueueJob(ctx, dbgen.EnqueueJobParams{
+				JobType: job.jobType, Payload: payload,
+				IdempotencyKey: pgtype.Text{String: uuid.UUID(row.ID.Bytes).String() + ":" + job.suffix, Valid: true},
+				MaxAttempts:    8, RunAt: pgtype.Timestamptz{Time: job.runAt, Valid: true},
+			})
+			if enqueueErr != nil {
+				return fmt.Errorf("enqueue outing lifecycle: %w", enqueueErr)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError

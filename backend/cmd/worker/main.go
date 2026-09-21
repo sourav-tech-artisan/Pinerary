@@ -15,6 +15,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/jobs"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/media"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/notifications"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
@@ -61,6 +62,10 @@ func run() error {
 	}
 	photoProcessor := media.NewProcessor(dbgen.New(pool), objectStore, cfg.MaxPhotoBytes)
 	runner.Register("photo.process", photoProcessor.HandleJob)
+	pushSender := notifications.NewWebPushSender(cfg.VAPIDSubscriber, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey)
+	lifecycleProcessor := notifications.NewLifecycleProcessor(dbgen.New(pool), pushSender)
+	runner.Register("outing.warn", lifecycleProcessor.HandleWarning)
+	runner.Register("outing.expire", lifecycleProcessor.HandleExpiry)
 
 	logger.Info("starting worker", "worker_id", workerID)
 	return runner.Run(ctx)

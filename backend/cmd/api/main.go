@@ -61,7 +61,7 @@ func run() error {
 	}
 
 	queries := dbgen.New(databasePool)
-	journeyService := journeys.NewService(queries)
+	journeyService := journeys.NewService(databasePool)
 	placeService := places.NewService(databasePool)
 	nominatim, err := geocoding.NewNominatimClient(cfg.NominatimURL, cfg.NominatimUserAgent, nil)
 	if err != nil {
