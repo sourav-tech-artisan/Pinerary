@@ -1,7 +1,10 @@
 .PHONY: build db-down db-up fmt fmt-check generate lint migrate run run-worker test vapid vet
 
 build:
+	mkdir -p bin
 	go build -o bin/pinerary-api ./cmd/api
+	go build -o bin/pinerary-worker ./cmd/worker
+	go build -o bin/pinerary-migrate ./cmd/migrate
 
 db-down:
 	docker compose -f ../infra/compose.yaml down
