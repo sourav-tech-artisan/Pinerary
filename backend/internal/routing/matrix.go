@@ -21,6 +21,7 @@ const (
 type Cost struct {
 	DistanceM float64
 	Duration  int32
+	Reachable bool
 }
 
 type MatrixRouter interface {
@@ -62,8 +63,8 @@ func (c *ValhallaClient) Matrix(ctx context.Context, origin Coordinate, destinat
 
 	var result struct {
 		SourcesToTargets [][]struct {
-			Distance float64 `json:"distance"`
-			Time     float64 `json:"time"`
+			Distance *float64 `json:"distance"`
+			Time     *float64 `json:"time"`
 		} `json:"sources_to_targets"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 2<<20)).Decode(&result); err != nil {
@@ -75,7 +76,18 @@ func (c *ValhallaClient) Matrix(ctx context.Context, origin Coordinate, destinat
 
 	costs := make([]Cost, 0, len(destinations))
 	for _, cost := range result.SourcesToTargets[0] {
-		costs = append(costs, Cost{DistanceM: cost.Distance * 1000, Duration: int32(cost.Time)})
+		if cost.Distance == nil && cost.Time == nil {
+			costs = append(costs, Cost{})
+			continue
+		}
+		if cost.Distance == nil || cost.Time == nil || *cost.Distance < 0 || *cost.Time < 0 {
+			return nil, fmt.Errorf("Valhalla matrix response contains an invalid cost")
+		}
+		costs = append(costs, Cost{
+			DistanceM: *cost.Distance * 1000,
+			Duration:  int32(*cost.Time),
+			Reachable: true,
+		})
 	}
 	return costs, nil
 }

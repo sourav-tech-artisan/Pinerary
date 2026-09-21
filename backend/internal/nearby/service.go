@@ -85,9 +85,19 @@ func (s *Service) Find(
 			continue
 		}
 		for index, cost := range costs {
+			if !cost.Reachable {
+				continue
+			}
 			results[index].Routes[mode] = &Estimate{DistanceM: cost.DistanceM, DurationS: cost.Duration}
 		}
 	}
+	reachable := results[:0]
+	for _, result := range results {
+		if result.Routes[sortMode] != nil {
+			reachable = append(reachable, result)
+		}
+	}
+	results = reachable
 
 	sort.SliceStable(results, func(left, right int) bool {
 		return results[left].Routes[sortMode].DistanceM < results[right].Routes[sortMode].DistanceM
