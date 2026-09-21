@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
@@ -39,6 +40,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	}
 
 	router := gin.New()
+	if err := router.SetTrustedProxies(nil); err != nil {
+		panic("disable default trusted proxies: " + err.Error())
+	}
 	router.HandleMethodNotAllowed = true
 	router.Use(
 		requestID(),
@@ -54,8 +58,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	router.GET("/openapi.yaml", serveOpenAPI)
 	router.GET("/metrics", metrics.serve)
 	share := sharingHandler{service: config.SharingService}
-	router.GET("/api/v1/shares/:token", share.resolveJSON)
-	router.GET("/s/:token", share.resolvePage)
+	publicShareLimiter := newFixedWindowLimiter(120, time.Minute)
+	router.GET("/api/v1/shares/:token", publicShareLimiter.middleware("public_share"), share.resolveJSON)
+	router.GET("/s/:token", publicShareLimiter.middleware("public_share"), share.resolvePage)
 
 	api := router.Group("/api/v1")
 	api.Use(authenticate(config.Verifier, config.UserProvisioner))
@@ -84,19 +89,19 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	api.PATCH("/journeys/:journeyId/stops/:stopId", place.updateStop)
 
 	geocoder := geocodingHandler{service: config.GeocodingService}
-	api.GET("/places/reverse-geocode", geocoder.reverse)
+	api.GET("/places/reverse-geocode", newFixedWindowLimiter(30, time.Minute).middleware("reverse_geocode"), geocoder.reverse)
 
 	tracking := trackingHandler{service: config.TrackingService}
 	api.POST("/journeys/:journeyId/locations/batch", tracking.ingest)
 	api.GET("/journeys/:journeyId/route", tracking.route)
 
 	media := mediaHandler{service: config.MediaService}
-	api.POST("/photos/upload-intents", media.reserve)
+	api.POST("/photos/upload-intents", newFixedWindowLimiter(30, time.Minute).middleware("photo_upload"), media.reserve)
 	api.POST("/photos/:photoId/complete", media.complete)
 	api.GET("/journeys/:journeyId/stops/:stopId/photos", media.listStopPhotos)
 
 	nearby := nearbyHandler{service: config.NearbyService}
-	api.GET("/places/nearby", nearby.find)
+	api.GET("/places/nearby", newFixedWindowLimiter(60, time.Minute).middleware("nearby"), nearby.find)
 
 	api.POST("/journeys/:journeyId/shares", share.create)
 	api.DELETE("/share-links/:shareId", share.revoke)
