@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Draft for architecture review |
+| Status | Backend baseline implemented; PWA design pending |
 | Last updated | 2026-09-21 |
 | Intended release | MVP for a small group of independent users |
 | Primary backend | Go modular monolith |
@@ -14,7 +14,7 @@ Pinerary is a personal travel and outing journal. It records places, photos, and
 
 The system is also intended to demonstrate backend-engineering ability at approximately five years of experience. The design therefore emphasizes data modelling, geospatial queries, offline synchronization, idempotency, asynchronous processing, privacy, observability, and failure handling. It deliberately avoids adding distributed infrastructure only for portfolio value.
 
-This document records the current product decisions, technical decisions, reasons, important alternatives, and unresolved questions. It is an architecture document, not an implementation plan or API commitment.
+This document records product decisions, technical decisions, reasons, important alternatives, the implemented backend shape, and unresolved client/deployment questions. The served OpenAPI document remains the authoritative HTTP contract.
 
 ## 2. Product scope
 
@@ -30,7 +30,7 @@ This document records the current product decisions, technical decisions, reason
 8. Nearby search includes every place owned by the user, whether it was bookmarked directly or captured during a journey.
 9. Nearby results default to motorcycle road distance and show car, motorcycle, and walking time and distance. Users can change the mode, and the app remembers their latest selection. Straight-line distance is only an internal prefilter or a clearly labelled offline fallback.
 10. An itinerary can be reordered for one share operation without changing the recorded trip timeline.
-11. Sharing produces a formatted message containing a revocable public itinerary link. The public page presents a map and timeline and may include only the photos/details explicitly selected by the owner.
+11. Sharing produces a formatted message containing a revocable public itinerary link. The public page presents selected stops in a share-only order with snapshot text/coordinates and only explicitly selected photos.
 12. Core capture operations continue offline and synchronize later.
 13. An outing receives a warning at 23 hours and automatically ends at 24 hours unless converted to a trip.
 
@@ -110,17 +110,17 @@ The API and worker use the same Go modules and are built from one repository. Th
 | API style | Versioned REST with OpenAPI | Decided | Fits resource workflows, offline clients, and generated contracts |
 | Mobile delivery | PWA first; Capacitor Android APK in the final phase | Decided | Delivers a useful zero-cost cross-platform product before adding Android-only background tracking |
 | Main database | PostgreSQL with PostGIS | Decided | Transactions plus indexed geospatial querying |
-| Go database access | `pgx` and `sqlc` | Working decision | Efficient PostgreSQL access and explicit, type-safe SQL |
-| Migrations | SQL-first migrations, initially Goose | Working decision | Transparent migrations and a small tool surface |
+| Go database access | `pgx` and `sqlc` | Implemented | Efficient PostgreSQL access and explicit, type-safe SQL |
+| Migrations | SQL-first migrations with Goose | Implemented | Transparent migrations and a small tool surface |
 | Photos | Private S3-compatible object storage | Decided | Durable binary storage without loading the API server |
 | Browser offline store | IndexedDB, accessed through Dexie | Working decision | Durable structured client storage and queryable mutation queue |
 | Android offline store | SQLite plus native file storage in the final phase | Working decision | Reliable background writes and large-photo handling in the APK |
 | Map renderer | MapLibre GL JS in the shared UI | Decided | Open source, compatible with the PWA and Capacitor WebView, and independent of a commercial map vendor |
 | Map data | OpenStreetMap-derived data | Decided | Open data and compatible self-hosting path |
-| Reverse geocoding | Nominatim behind a backend adapter | Working decision | Open source; can begin with compliant public usage and later self-host |
-| Routing | Self-hosted Valhalla | Working decision | Open source, matrices, motorcycle costing, and map matching |
+| Reverse geocoding | Nominatim behind a backend adapter | Implemented | Open source; can begin with compliant public usage and later self-host |
+| Routing | Self-hosted Valhalla | Implemented adapter; deployment pending | Open source, matrices, motorcycle costing, and map matching |
 | Default nearby mode | Motorcycle road distance | Decided | Matches the user's primary transport mode while keeping other modes selectable |
-| Jobs | PostgreSQL-backed queue plus transactional outbox | Decided | Reliable asynchronous work without Kafka/Redis in the MVP |
+| Jobs | PostgreSQL-backed queue; outbox primitive reserved | Implemented | Reliable asynchronous work without Kafka/Redis in the MVP |
 | Sharing | Revocable public itinerary page plus native text/link sharing | Decided | Creates a useful, attractive share while retaining owner control |
 | Timeline policy | Immutable sequence/timestamps after completion | Decided | Preserves historical truth |
 | Share customization | Separate share snapshot/export | Decided | Allows reorder without mutating the journey |
@@ -181,7 +181,7 @@ The application will expose a common local repository/sync interface with two im
 
 Large photo blobs should not be stored in SQLite. The Android client stores a file path and metadata in SQLite; the PWA stores a `Blob` in IndexedDB until it is uploaded.
 
-Local records use client-generated UUIDv7 identifiers so the UI can create relationships while offline. Server records retain those identifiers when accepted.
+Local records use client-generated UUIDs so the UI can create relationships while offline. The current API stores them as idempotency/sample identifiers and returns server-generated resource IDs.
 
 ### 6.4 Client mutation outbox
 
@@ -212,16 +212,16 @@ Retries use exponential backoff with jitter. Authentication errors pause the que
 The initial backend is one logical application divided into packages with explicit responsibilities:
 
 ```text
-identity       users, sessions, device registrations
+identity       OIDC token verification, principals, user provisioning
 journeys       lifecycle, stops, timeline invariants
-places         saved places and provider references
+places         owner-scoped saved places and stop snapshots
 tracking       GPS ingestion, cleaning, track derivation
 nearby         candidate selection and route-time enrichment
 media          upload lifecycle, metadata, thumbnails
 sharing        share snapshots, public links, and page/text rendering
 notifications  notification subscriptions and dispatch
-jobs           durable jobs, retries, outbox consumption
-platform       database, HTTP, configuration, telemetry
+jobs           durable jobs, leasing, retries, dead letters
+httpapi/config/database/telemetry  platform adapters
 ```
 
 Modules communicate through service interfaces or explicit domain events. Handlers must not reach directly into another module's tables.
@@ -235,19 +235,19 @@ Gin provides HTTP routing, middleware, request binding, and response writing. To
 - `gin.Context` remains in the transport layer.
 - Services accept standard `context.Context` and domain values.
 - Authorization is checked before calling domain services.
-- Error mapping occurs in one middleware.
+- Shared transport helpers map domain errors consistently.
 - Business services never write HTTP responses.
 
 Fiber was not selected because its native stack differs from `net/http`; interoperability requires adapters and changes request semantics. The expected bottlenecks are database work, object storage, and routing calls, so Fiber's synthetic HTTP throughput is not a meaningful advantage here.
 
 ### 7.3 API conventions
 
-- Base path: `/v1`
+- Base path: `/api/v1`
 - JSON for normal requests and responses
-- RFC 9457-style problem details for errors
+- Stable error envelope containing code, message, and request ID
 - UTC RFC 3339 timestamps on the wire
 - Cursor pagination rather than offset pagination for growing lists
-- `Idempotency-Key` required on offline-retryable creates and batch ingestion
+- Stable `client_request_id` or `sample_id` fields make offline-retryable creates and batch ingestion idempotent
 - Optimistic version on mutable aggregate roots
 - Request correlation ID propagated into logs and provider calls
 - OpenAPI is the contract used to generate or validate clients
@@ -255,36 +255,33 @@ Fiber was not selected because its native stack differs from `net/http`; interop
 Representative endpoints:
 
 ```text
-POST   /v1/journeys
-POST   /v1/journeys/{id}/activate
-POST   /v1/journeys/{id}/convert-to-trip
-POST   /v1/journeys/{id}/complete
-GET    /v1/journeys/{id}
+POST   /api/v1/journeys
+POST   /api/v1/journeys/{id}/convert-to-trip
+POST   /api/v1/journeys/{id}/end
+GET    /api/v1/journeys/{id}
 
-POST   /v1/journeys/{id}/stops
-PATCH  /v1/journeys/{id}/stops/{stopId}
-POST   /v1/journeys/{id}/track-points:batch
-GET    /v1/journeys/{id}/track
+POST   /api/v1/journeys/{id}/stops
+PATCH  /api/v1/journeys/{id}/stops/{stopId}
+POST   /api/v1/journeys/{id}/locations/batch
+GET    /api/v1/journeys/{id}/route
 
-POST   /v1/places
-GET    /v1/places/nearby
+POST   /api/v1/places
+GET    /api/v1/places/nearby
 
-POST   /v1/media/uploads
-POST   /v1/media/uploads/{id}/complete
+POST   /api/v1/photos/upload-intents
+POST   /api/v1/photos/{id}/complete
 
-POST   /v1/journeys/{id}/share-links
-DELETE /v1/share-links/{id}
+POST   /api/v1/journeys/{id}/shares
+DELETE /api/v1/share-links/{id}
 GET    /s/{publicToken}
-POST   /v1/devices/push-subscriptions
+POST   /api/v1/devices
 ```
-
-Endpoint names may change during OpenAPI design, but the resource boundaries should remain.
 
 ### 7.4 Database access
 
 Use PostgreSQL through `pgx`; use `sqlc` to generate typed methods from reviewed SQL. Geospatial SQL will remain explicit because ORM abstractions commonly obscure spatial indexes and query plans.
 
-Every database operation accepts the request `context.Context` with a bounded timeout. Multi-table state changes use database transactions. Migrations are SQL-first so indexes, constraints, PostGIS types, and generated expressions remain visible during review.
+Database operations accept the request `context.Context`; outbound provider clients enforce explicit timeouts. Multi-table state changes use database transactions. Migrations are SQL-first so indexes, constraints, PostGIS types, and generated expressions remain visible during review.
 
 ## 8. Data model
 
@@ -293,17 +290,14 @@ Every database operation accepts the request `context.Context` with a bounded ti
 ```mermaid
 erDiagram
     USERS ||--o{ DEVICES : owns
-    USERS ||--o{ USER_PLACES : owns
-    PLACES ||--o{ USER_PLACES : describes
+    USERS ||--o{ PLACES : owns
     USERS ||--o{ JOURNEYS : owns
     JOURNEYS ||--o{ JOURNEY_STOPS : contains
-    USER_PLACES ||--o{ JOURNEY_STOPS : references
-    JOURNEYS ||--o{ TRACKS : records
-    TRACKS ||--o{ TRACK_POINTS : contains
-    JOURNEY_STOPS ||--o{ MEDIA_ASSETS : has
-    JOURNEYS ||--o{ SHARE_EXPORTS : exports
-    SHARE_EXPORTS ||--o{ SHARE_EXPORT_ITEMS : orders
-    SHARE_EXPORTS ||--o{ SHARE_LINKS : publishes
+    PLACES ||--o{ JOURNEY_STOPS : references
+    JOURNEYS ||--o{ LOCATION_SAMPLES : records
+    JOURNEYS ||--o{ ROUTE_SEGMENTS : derives
+    JOURNEY_STOPS ||--o{ PHOTOS : has
+    JOURNEYS ||--o{ ITINERARY_SHARES : publishes
 ```
 
 ### 8.2 Core tables
@@ -311,154 +305,111 @@ erDiagram
 #### `users`
 
 - `id UUID` primary key
-- External identity subject/provider
+- External OIDC subject
 - Display name
 - Preferred nearby transport mode, defaulting to `motorcycle`
-- Account status
 - Created/updated timestamps
 
 #### `devices`
 
 - `id UUID`
 - `user_id`
-- Platform and application version
 - Device-generated installation identifier
 - Push-subscription metadata
 - Last-seen timestamp
 
-A user can have multiple devices. Device identity supports GPS sequence uniqueness and targeted notification cleanup; it is not a substitute for user authentication.
+A user can have multiple devices. Device identity supports per-installation push subscriptions and targeted subscription cleanup; it is not a substitute for user authentication.
 
 #### `places`
 
 - `id UUID`
+- `owner_id`
 - `location geography(Point, 4326)`
-- Canonical/suggested name
-- Address components
-- `provider` and `provider_place_id`, nullable
-- Timezone, nullable
-- Creation timestamp
-
-This represents geographic/provider identity. It does not hold private user notes.
-
-#### `user_places`
-
-- `id UUID`
-- `user_id`
-- `place_id`
-- User-editable display name
-- Personal note and optional tags
-- Source: standalone pin, journey capture, import, or future planning
+- User-editable name and notes
+- Stable client request ID
+- Soft-deletion timestamp
 - Created/updated timestamps
 
-All nearby searches operate on `user_places`. When a place is pinned during a journey, the system creates or associates a `user_place`, ensuring that visited and standalone locations appear in one library.
+The MVP deliberately keeps each place private and owner-scoped instead of introducing a global canonical-place table. Pinning during a journey atomically creates a place and a stop, so visited and standalone locations appear in one library. A future provider-identity layer can be added without rewriting historical stop snapshots.
 
 #### `journeys`
 
 - `id UUID`
-- `user_id`
+- `owner_id`
 - `kind`: `trip` or `outing`
-- `status`: `draft`, `active`, `completed`
-- Title
-- Started/completed timestamps
-- Origin timezone
+- `status`: `active`, `ended`, or `expired`
+- Label
+- Started/ended timestamps
+- Stable client request ID
 - Optimistic `version`
-- Completion reason: user, outing timeout, or administrative recovery
 
-Initially, one active journey per user is enforced with a partial unique index. This removes ambiguity about where automatic GPS samples belong.
+Creation starts a journey immediately. One active journey per user is enforced with a partial unique index, removing ambiguity about where automatic GPS samples belong.
 
 #### `journey_stops`
 
 - `id UUID`
 - `journey_id`
-- `user_place_id`
+- `place_id`
 - Location snapshot `geography(Point, 4326)`
 - User-editable display-name snapshot
-- Server capture time
-- User/device visit time
+- Client capture time
 - Original sequence number
+- Stable client request ID
 - Note
-- GPS accuracy at capture
 - Created/updated timestamps
 
 The location snapshot prevents later edits to a reusable place from rewriting history.
 
-#### `tracks`
+#### `location_samples`
 
-- `id UUID`
 - `journey_id`
-- Status: recording, processing, ready, or failed
-- Raw point count
-- Cleaned point count
-- Cleaned path `geography(LineString, 4326)`, nullable
-- Map-matched path `geography(LineString, 4326)`, nullable
-- Processing version and error details
-
-#### `track_points`
-
-- `track_id`
-- `device_id`
-- Client sequence number
-- Client timestamp and server receipt timestamp
+- Client-generated `sample_id`
+- Client capture timestamp and server creation timestamp
 - `location geography(Point, 4326)`
 - Horizontal accuracy
-- Altitude and altitude accuracy, nullable
 - Speed and heading, nullable
-- Source/platform
-- Quality flags
+- Acceptance flag and rejection reason
 
-The uniqueness constraint `(track_id, device_id, client_sequence)` makes batch retries idempotent. Raw points are append-only. Invalid-looking samples are flagged rather than destroyed.
+The uniqueness constraint `(journey_id, sample_id)` makes batch retries idempotent. Raw points are append-only. Invalid-looking samples are flagged rather than destroyed.
 
-#### `media_assets`
+#### `route_segments`
+
+- `journey_id` and segment number
+- Started/ended timestamps
+- Cleaned path `geography(LineString, 4326)`
+- Map-matched path, nullable
+- Distance and duration
+
+#### `photos`
 
 - `id UUID`
-- `user_id`
-- `journey_stop_id`
+- `owner_id`, `journey_id`, and optional `stop_id`
 - Private object key
-- Upload state
+- Thumbnail object key
+- Status: `pending`, `uploaded`, `processed`, or `failed`
 - Content type and byte size
 - Cryptographic checksum
-- Width/height and captured time
-- Thumbnail object keys
-- Created/deleted timestamps
+- Stable client request ID and captured time
+- Created/updated timestamps
 
-#### `share_exports`
-
-- `id UUID`
-- `journey_id`
-- `user_id`
-- Rendered text
-- Rendering template version
-- Creation timestamp
-
-#### `share_export_items`
-
-- `share_export_id`
-- `journey_stop_id`
-- Share-only position
-- Share-only name/note overrides, nullable
-
-An export is a snapshot. Reordering these items does not update `journey_stops`.
-
-#### `share_links`
+#### `itinerary_shares`
 
 - `id UUID`
-- `share_export_id`
-- `user_id`
+- `journey_id` and `owner_id`
 - Hash of a high-entropy public token
+- Immutable JSON snapshot containing ordered stop presentation and selected photos
 - Optional expiration time
 - Revocation time, nullable
-- Privacy selections, including whether photos, notes, exact stop coordinates, and the recorded route are exposed
-- Created and last-accessed timestamps
+- Creation timestamp
 
-Only the token is placed in the public URL; the database stores its cryptographic hash. A link can be revoked without deleting the underlying journey or export.
+Only the token is placed in the public URL; the database stores its cryptographic hash. A link can be revoked without deleting the underlying journey. The snapshot's order and text overrides do not mutate journey stops.
 
 #### Operational tables
 
-- `idempotency_keys`
 - `outbox_events`
-- `jobs`
-- `push_subscriptions`
-- `audit_events` for security-relevant and lifecycle actions
+- `background_jobs`
+
+Push subscriptions are stored on device registrations. Dedicated audit events and self-service account export/deletion are pre-public-launch hardening work, not part of the current backend baseline.
 
 ### 8.3 Spatial indexes
 
@@ -466,8 +417,7 @@ At minimum:
 
 ```sql
 CREATE INDEX places_location_gist ON places USING GIST (location);
-CREATE INDEX journey_stops_location_gist ON journey_stops USING GIST (location_snapshot);
-CREATE INDEX track_points_location_gist ON track_points USING GIST (location);
+CREATE INDEX location_samples_location_gist ON location_samples USING GIST (location);
 ```
 
 The exact nearby query must be verified with `EXPLAIN (ANALYZE, BUFFERS)` against representative data. `ST_DWithin` should be used for radius filtering, and nearest-neighbour ordering should use the PostGIS distance operator so the spatial index can participate.
@@ -476,12 +426,12 @@ The exact nearby query must be verified with `EXPLAIN (ANALYZE, BUFFERS)` agains
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Draft
-    Draft --> Active: start
+    [*] --> Active: create
     Active --> Active: outing converted to trip
-    Active --> Completed: user finishes
-    Active --> Completed: 24-hour outing timeout
-    Completed --> [*]
+    Active --> Ended: user finishes
+    Active --> Expired: 24-hour outing timeout
+    Ended --> [*]
+    Expired --> [*]
 ```
 
 Rules:
@@ -491,10 +441,10 @@ Rules:
 3. At 23 hours, an active outing produces a conversion warning.
 4. At 24 hours, an unconverted outing is completed by a durable server job.
 5. A missed push notification does not prevent server-side completion.
-6. After completion, stop sequence, visit timestamp, and captured coordinates are immutable.
-7. Stop names can be corrected and photos can be added or removed after completion.
-8. Reopening a completed journey is outside the MVP.
-9. Share-specific order and text belong to a share export, never the journey.
+6. After ending, stop sequence, visit timestamp, and captured coordinates are immutable.
+7. Stop names can be corrected and photos can be added after ending.
+8. Reopening an ended journey is outside the MVP.
+9. Share-specific order and text belong to an itinerary snapshot, never the journey.
 
 ## 10. Automatic route tracking
 
@@ -515,7 +465,7 @@ Sampling must be adaptive and configurable rather than permanently hard-coded. I
 
 The initial calibration target is a useful walking/driving path without second-by-second sampling throughout a long stationary period. Exact intervals will be chosen through real-device tests.
 
-Every raw sample is persisted locally before network transmission. Samples are uploaded in bounded, compressed batches. The API accepts late and out-of-order batches, deduplicates them by sequence, and returns the highest contiguous acknowledged sequence where possible.
+Every raw sample is persisted locally before network transmission. Samples are uploaded in bounded batches of at most 500. The API accepts late and out-of-order batches and deduplicates them by stable sample ID.
 
 ### 10.2 Noise-processing pipeline
 
@@ -540,7 +490,7 @@ A Kalman filter is not part of the first version. Reported accuracy filtering, m
 - If processing is delayed, show the raw/cleaned route with a processing status.
 - If a client is killed before upload, locally persisted points synchronize on the next launch.
 - If the app loses authorization, tracking pauses and the user sees a prominent warning.
-- If multiple devices try to record the same journey, samples remain separated by device and the user is warned; automatic merging is not promised in the MVP.
+- The current schema deduplicates by journey and sample ID. Explicit per-device track separation is deferred until the Android tracking design requires it.
 
 ## 11. Places and nearby search
 
@@ -561,17 +511,15 @@ Nominatim is behind a backend adapter and cache. The public service is limited t
 Computing road times for every saved place is unnecessarily expensive. Nearby search uses two stages:
 
 1. PostGIS selects a bounded candidate set using indexed straight-line distance. This is an implementation detail, not the default distance shown to the user.
-2. Valhalla calculates one-to-many matrices for `auto`, `motorcycle`, and `pedestrian` costing.
-3. The backend ranks by road distance for the selected transport mode and returns ten results. The first-time default is `motorcycle`; the user's latest selection becomes their preference for subsequent searches.
+2. Valhalla calculates one-to-many matrices for car, motorcycle, and walking costing.
+3. The backend ranks by road distance for the selected transport mode and returns ten results by default. The first-time default is `motorcycle`; the user's profile stores the preferred mode.
 
 The response includes:
 
 - Road distance and duration for each available mode
-- A per-mode unavailable/error marker
 - The criterion actually used for sorting
-- Calculation timestamp
 
-If Valhalla is unavailable, the endpoint returns an explicitly labelled approximate straight-line fallback rather than failing the entire request. Offline clients can do the same from locally cached places; road distance and time require a routing graph and are deferred until online.
+If a non-selected mode fails, its estimate is omitted. If the selected mode fails, the endpoint returns `503` instead of silently treating straight-line distance as road distance. An offline client may present locally computed straight-line distance only when it clearly labels it as approximate and waits until online for road results.
 
 Candidate-set size and search radius are configuration values and should be tuned using correctness and latency tests. A small straight-line shortlist can miss a road-near place separated by a river or restricted road network, so the UI must not claim mathematical exactness unless all relevant places were routed.
 
@@ -587,7 +535,7 @@ For offline maps or increased usage, use self-hosted OSM-derived vector tiles or
 
 ### 12.2 Geocoding
 
-Use Nominatim for reverse geocoding through a `Geocoder` interface. Cache permissible results, identify the application correctly, apply global rate limiting, and avoid autocomplete against the public server. A self-hosted Nominatim/Photon/Pelias deployment can replace it later.
+Use Nominatim for reverse geocoding through a `Geocoder` interface. Cache permissible results, identify the application correctly, serialize upstream requests at no more than one per second per API process, and avoid autocomplete against the public server. A self-hosted Nominatim/Photon/Pelias deployment can replace it later.
 
 ### 12.3 Routing and map matching
 
@@ -619,7 +567,7 @@ Online flow:
 4. Client uploads directly to object storage.
 5. Client completes the reservation with size/checksum metadata.
 6. A job validates the object and generates thumbnails.
-7. Asset becomes `ready`.
+7. Asset becomes `processed` and is available through a short-lived thumbnail URL.
 
 Offline flow:
 
@@ -636,7 +584,7 @@ Security rules:
 - Use checksums to detect incomplete or corrupted uploads.
 - Strip unnecessary EXIF metadata from derived/shared images; retain original metadata only if the privacy policy explicitly allows it.
 - Use private buckets and time-limited reads.
-- Clean abandoned pending objects with a scheduled job.
+- An hourly worker claims and removes uploads still pending after 24 hours. The atomic claim prevents cleanup from racing a concurrent completion.
 
 ## 14. Public itinerary sharing
 
@@ -644,11 +592,11 @@ Sharing creates an immutable presentation snapshot and a revocable unlisted link
 
 Flow:
 
-1. Client builds a preview with selected stops, share-only order, optional text overrides, and explicit privacy selections.
+1. Client builds a preview with selected stops, share-only order, optional text overrides, and explicitly selected photos.
 2. Backend validates that every stop/photo belongs to the user and journey.
-3. Backend stores an immutable `share_export` and creates a high-entropy `share_link` token.
+3. Backend stores an immutable snapshot and a SHA-256 hash of a high-entropy public token.
 4. The Go server renders `GET /s/{token}` as responsive HTML with Open Graph metadata so WhatsApp can produce a useful link preview without executing JavaScript.
-5. The page shows a styled timeline, map, and only the route, notes, coordinates, and photos selected for that link.
+5. The page shows a styled stop timeline/map, snapshot notes and coordinates, and only the photos selected for that link.
 6. Client passes a short formatted message and the URL to the native/Web Share sheet.
 7. If the share API is unavailable, offer copy-to-clipboard and an encoded WhatsApp link.
 
@@ -668,16 +616,15 @@ The public route is served by Go using an HTML template and shared static stylin
 
 - The local database is the immediate source for UI rendering while offline.
 - PostgreSQL is the authoritative system of record after synchronization.
-- Creates use stable client-generated IDs and idempotency keys.
-- Mutable entities use optimistic versions.
+- Creates use stable client-generated idempotency/sample IDs.
+- Journey mutations use optimistic versions.
 - The API may process a request more than once internally, but the observable mutation occurs once.
 
 ### 15.2 Conflict rules
 
-- Completed journey sequence/time/location changes are rejected.
-- Concurrent name edits use optimistic concurrency; the losing client must refresh and reapply.
+- Ended journey sequence/time/location changes are rejected because no endpoint exposes them.
+- Concurrent journey edits use optimistic concurrency; place/stop metadata currently uses last accepted write.
 - Photo additions commute and can be synchronized independently.
-- Photo deletion wins only after server acknowledgement; a locally queued upload for a deleted asset is cancelled.
 - Duplicate GPS batches are acknowledged without reinserting points.
 - An outing auto-completed by the server rejects new stops/points; the client retains rejected local data for explicit recovery rather than discarding it.
 
@@ -685,7 +632,7 @@ The public route is served by Go using an HTML template and shared static stylin
 
 Use PostgreSQL for the initial durable job queue. Workers claim jobs with row locks such as `FOR UPDATE SKIP LOCKED`, set leases, retry transient failures with exponential backoff, and send permanently failing jobs to a reviewable dead-letter state.
 
-Use a transactional outbox when an event must follow a database state change. For example, the transaction that completes a journey also records an event requesting track processing. This prevents the journey from being completed without the processing job being scheduled.
+Feature services insert dependent jobs in the same PostgreSQL transaction as state changes. An outbox table and typed queries are also present for future external event delivery, but no external broker is used.
 
 Initial job types:
 
@@ -693,8 +640,9 @@ Initial job types:
 - Outing 24-hour auto-completion
 - Track cleaning/map matching
 - Photo verification and thumbnail generation
-- Abandoned upload cleanup
-- Notification delivery/retry
+- Hourly abandoned-photo cleanup
+
+Notification attempts occur inside the warning job; expiry remains independent of successful delivery.
 
 Redis, Kafka, and a separate workflow engine are not justified for the MVP.
 
@@ -715,23 +663,19 @@ The Android APK will not require Google Play distribution. For the small friends
 
 Location history can reveal home, work, habits, and current whereabouts. It must receive stricter treatment than ordinary profile data.
 
-Required controls:
+Implemented application controls:
 
-- HTTPS everywhere
 - Authentication and ownership checks on every private resource
 - Parameterized SQL only
 - Private object storage
 - Short-lived signed upload/read URLs
-- Encryption at rest provided by the storage/database platform
-- Explicit permission and visible recording state
-- Immediate “stop recording” control
 - Automatic stop for outings
 - No tracking when no journey is active
-- Rate limits on login, geocoding, nearby, and upload endpoints
-- Audit events for journey start/end, export, and account deletion
-- Account data export and deletion path
+- Per-user limits on costly authenticated endpoints and per-IP limits on public share reads
 - Secrets stored outside source control
 - Location and tokens excluded from routine logs
+
+The deployment must terminate HTTPS, enable encryption at rest, and add an edge limiter if aggregate limits across API replicas are required. The PWA must add explicit permission, visible recording state, and an immediate stop control. Security audit events and self-service account export/deletion remain required hardening before a public launch; Nominatim upstream requests are already serialized and cached.
 
 Authorization should be implemented at the service/repository boundary, not only in the UI. Every query for user-owned data includes the authenticated user ID. PostgreSQL row-level security may be added as defence in depth, but it does not replace application checks.
 
@@ -759,30 +703,22 @@ The preferred direction is standards-based OIDC rather than implementing passwor
 - Go token verification
 - Avoiding a permanent dependency on Next.js as an authentication backend
 
-This must be resolved before implementation of user-owned APIs.
+The backend boundary is already provider-neutral: it performs OIDC discovery and validates signature, issuer, audience, and expiry. The production provider and account-recovery flow must be selected before deployment; development mode is local-only.
 
 ## 20. Observability
 
-Use OpenTelemetry-compatible instrumentation and structured logs.
+The backend uses OpenTelemetry-compatible HTTP/provider/job traces, aggregate Prometheus-format HTTP metrics, and structured logs.
 
 ### Logs
 
 - JSON structured logs
 - Correlation/request ID
-- User ID only when necessary and suitably minimized
 - No raw coordinates, access tokens, signed URLs, or photo metadata in normal logs
 
 ### Metrics
 
-- API request count, latency, and errors
-- Database pool utilization and query latency
-- Track points ingested and rejected/flagged
-- Synchronization lag
-- Map-matching duration and failure rate
-- Routing/geocoding provider latency and errors
-- Pending/failed job counts
-- Upload completion and abandonment rate
-- Push delivery outcomes
+- API request count, 5xx count, in-flight count, and cumulative duration are currently exposed.
+- Per-route histograms, database pool metrics, job backlog, provider errors, upload outcomes, and push outcomes should be added to the production dashboard before broader use.
 
 ### Traces
 
@@ -804,18 +740,18 @@ Trace API request -> database -> provider/queue operations, with coordinate payl
 Use a real PostgreSQL/PostGIS container for:
 
 - Spatial queries and indexes
-- Transactions and outbox insertion
-- Concurrent journey activation
-- Batch GPS deduplication
-- Job leasing and retry
+- Ownership isolation
+- Idempotent journey creation
 
-Use MinIO for S3-compatible upload integration tests and stubbed HTTP servers for Valhalla/Nominatim failure scenarios.
+Transaction, concurrent journey creation, GPS deduplication, and job-leasing behaviour have unit coverage or query-level design, but broader database integration coverage remains release hardening.
+
+Provider adapters use stubbed HTTP servers for Valhalla/Nominatim failure scenarios. Photo processing uses an in-memory object-store fake; an end-to-end MinIO test remains pre-release work.
 
 ### Contract tests
 
 - Validate handlers against OpenAPI
-- Test backward compatibility of mobile-used endpoints
-- Test partial nearby responses when routing modes fail
+- Reject an invalid OpenAPI document in CI/tests
+- Add backward-compatibility checks once a released PWA depends on the contract
 
 ### End-to-end/device tests
 
@@ -826,7 +762,7 @@ Use MinIO for S3-compatible upload integration tests and stubbed HTTP servers fo
 - App termination and recovery
 - Cross-timezone trip capture
 - 24-hour outing completion
-- WhatsApp/native link sharing and public-page rendering, revocation, expiration, and privacy selections
+- WhatsApp/native link sharing and public-page rendering, revocation, expiration, and photo selection
 
 ### Performance tests
 
@@ -843,8 +779,8 @@ Use containers for:
 
 - PostgreSQL/PostGIS
 - MinIO
-- Valhalla with a small regional extract
-- Optional local geocoder
+
+Run Valhalla separately with a small regional extract. An optional local geocoder can replace the public adapter endpoint.
 
 Next.js and Go may run directly for fast reload or through containers for parity.
 
@@ -885,7 +821,7 @@ The modular monolith is expected to handle the friends-only MVP comfortably. Lik
 
 Potential evolutions, only when measured:
 
-- Time/range partition `track_points`
+- Time/range partition `location_samples`
 - Read replicas for analytical/history views
 - Extract track processing into an independently scaled worker service
 - Add a cache for repeated permitted computations
@@ -898,33 +834,23 @@ Application module boundaries and the transactional outbox make later extraction
 
 The current design supports future planning and semantic retrieval without implementing them:
 
-- `places` separate physical/provider identity from user state.
-- `user_places` preserve the user's library and notes.
+- Owner-scoped `places` preserve the user's private library and notes.
 - `journey_stops` preserve temporal visit context.
 - Stable IDs allow future planned stops to reference the same places.
 - Raw notes and media metadata remain available for future indexing.
-- Origin timestamps/timezones support temporal questions.
+- Capture timestamps support temporal questions; explicit origin timezone metadata can be added with planner requirements.
 - Provider adapters allow recommendation/routing changes.
 
 A future planner can add planned journeys/stops and optimization without changing completed historical stops. A future RAG feature can index authorized notes and media descriptions. Neither a vector database nor embedding pipeline should be deployed until those features are actually designed.
 
 ## 25. Delivery slices
 
-Implementation should proceed vertically, not “all backend then all frontend”:
+The chosen delivery order is:
 
-1. **Walking skeleton:** identity placeholder, Next.js shell, Go health/API, PostgreSQL, CI.
-2. **Journey slice:** create/start/complete journey and render timeline.
-3. **Explicit pin slice:** offline pin, synchronization, reverse-geocode suggestion, saved-place library.
-4. **PWA tracking slice:** foreground capture, IndexedDB persistence, batch ingestion, and raw route display.
-5. **Track processing slice:** cleaning, segmentation, Valhalla map matching.
-6. **Media slice:** offline photo queue, presigned upload, thumbnails.
-7. **Nearby slice:** PostGIS candidates and three-mode Valhalla matrix.
-8. **Share slice:** reorderable preview, revocable public page, and WhatsApp/native link sharing.
-9. **Lifecycle slice:** push registration, 23-hour warning, 24-hour auto-completion.
-10. **PWA hardening and release:** authorization review, observability, load/device tests, deletion/export, and cross-browser verification.
-11. **Final Android phase:** add Capacitor, Android SQLite/native file adapters, background-location collection, FCM integration, locked-screen tests, signed APK generation, and zero-cost limited distribution/sideloading.
-
-Low-fidelity mobile interaction designs should precede each slice. The backend contract and the thin UI for that slice are then implemented together.
+1. **Backend baseline — complete:** Go API/worker, OIDC boundary, PostGIS data model, journeys, places, tracking, media, nearby routing, sharing, lifecycle jobs, OpenAPI, tests, and operations documentation.
+2. **PWA design and vertical UI slices — next:** low-fidelity mobile interactions, static Next.js shell, IndexedDB outbox, journeys/pins, foreground tracking, media, nearby, sharing, and Web Push.
+3. **PWA hardening and release:** cross-browser/device tests, privacy UI, API hardening gaps, account export/deletion, and operational validation.
+4. **Final Android phase:** add Capacitor, Android SQLite/native file adapters, background-location collection, FCM integration, locked-screen tests, signed APK generation, and zero-cost limited distribution/sideloading.
 
 ## 26. Open decisions
 

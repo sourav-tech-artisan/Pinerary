@@ -2,20 +2,46 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposed implementation sequence |
+| Status | Backend baseline implemented; retained as execution history |
 | Last updated | 2026-09-21 |
 | Scope | Backend system only |
 | Backend root | `backend/` |
 
-## 1. Approach
+## 1. Outcome
 
-The backend will be developed before the PWA, in small commits that remain buildable and testable independently. Each commit should introduce one coherent architectural capability or product behaviour.
+The planned backend sequence has been implemented as local, reviewable commits. The resulting system includes the Gin API, PostGIS persistence, durable worker, OIDC boundary, journeys/places, GPS processing, Valhalla/Nominatim adapters, private photo processing, road-ranked nearby search, public itinerary snapshots, outing expiry, telemetry, contract/integration tests, and operations documentation.
+
+| Phase | Commit range | Result |
+| --- | --- | --- |
+| Foundation | `ee5b27c`–`69a7163` | API lifecycle, CI/container, middleware, OpenAPI |
+| Persistence | `07e5173`–`0856649` | PostGIS, sqlc, Goose, jobs/outbox primitives |
+| Identity | `b836318`–`ef6b697` | Provider-neutral OIDC plus profiles/devices |
+| Journeys/places | `0e41887`–`53a91dc` | Lifecycle, stops, saved places, reverse geocoding |
+| Tracking | `7a7fee4`–`c0a9c07` | Idempotent samples, noise cleaning, route segments, map matching |
+| Media/nearby | `0573926`–`677935b` | Presigned uploads, thumbnails, private gallery, road matrices |
+| Sharing/lifecycle | `670ae91`–`414d769` | Revocable public snapshots and outing warning/expiry |
+| Hardening | `c37746d`–`310d409` | Telemetry, verification gates, deployable roles, rate limits, media cleanup |
+
+Implementation intentionally differs from early sketches where the simpler MVP model was sufficient:
+
+- The API is `/api/v1` and uses a stable error envelope rather than RFC 9457.
+- Client UUIDs are stored as idempotency/sample IDs; server resource IDs remain server-generated.
+- Places are directly owner-scoped instead of split into canonical `places` and `user_places` tables.
+- Nearby succeeds only with road data for the selected mode; it returns `503` rather than mislabelling a straight-line fallback.
+- One `itinerary_shares` snapshot replaces separate export/item/link tables.
+- The OpenAPI file and [API handbook](backend-api.md) are authoritative for the implemented contract.
+
+Before a public launch, add account export/deletion, audit events, broader database/MinIO integration tests, aggregate edge limits for multi-replica deployment, and production dashboards. Those are explicit hardening gaps, not hidden completed work.
+
+## 2. Original approach
+
+The backend was developed before the PWA in small commits intended to remain buildable and testable independently. Each commit introduced one coherent architectural capability or product behaviour.
 
 The existing architecture documents should be committed as a documentation baseline before implementation begins. This is separate from the numbered backend commits below; the first backend implementation commit remains the Gin project setup.
 
 No commit should contain unrelated formatting, speculative abstractions, disabled tests, secrets, or unfinished code hidden behind comments.
 
-## 2. Initial repository layout
+## 3. Initial repository layout
 
 ```text
 Pinerary/
@@ -34,9 +60,9 @@ Pinerary/
 │   │   ├── notifications/
 │   │   ├── jobs/
 │   │   └── platform/
-│   ├── migrations/
-│   ├── queries/
-│   ├── api/
+│   ├── internal/database/migrations/
+│   ├── internal/database/queries/
+│   ├── internal/httpapi/
 │   ├── go.mod
 │   └── go.sum
 ├── docs/
@@ -45,7 +71,7 @@ Pinerary/
 
 Directories should be created only when their first real code is introduced. Empty architecture-shaped packages are not useful.
 
-## 3. Commit rules
+## 4. Commit rules
 
 Every commit must:
 
@@ -59,7 +85,7 @@ Every commit must:
 
 Before committing, review the exact staged diff and exclude generated binaries, local databases, credentials, uploaded files, and environment-specific configuration.
 
-## 4. Backend phases and commits
+## 5. Backend phases and commits
 
 ### Phase A — Service foundation
 
@@ -106,14 +132,14 @@ Scope:
 - Panic recovery.
 - Request-size and server timeout limits.
 - Configurable CORS for the future PWA origin.
-- RFC 9457-style problem responses.
+- Stable JSON error envelopes with a request ID.
 - Redaction rules preventing tokens and coordinates from entering routine logs.
 
 #### Commit 4: `docs(api): define the initial OpenAPI contract`
 
 Scope:
 
-- Add the versioned `/v1` API contract.
+- Add the versioned `/api/v1` API contract.
 - Define common IDs, timestamps, pagination, problem responses, and idempotency headers.
 - Add OpenAPI validation/linting to CI.
 - Add only health and shared schemas initially; domain endpoints arrive with their features.
@@ -199,7 +225,7 @@ Scope:
 
 Scope:
 
-- Add `places`, `user_places`, and `journey_stops` schemas.
+- Add owner-scoped `places` and snapshot-preserving `journey_stops` schemas.
 - Use PostGIS `geography(Point, 4326)` and GiST indexes.
 - Add standalone place saving and journey-stop capture.
 - Preserve location snapshots and original timeline order.
@@ -221,9 +247,9 @@ Scope:
 
 Scope:
 
-- Add `tracks` and append-only `track_points` tables.
+- Add append-only `location_samples` and derived `route_segments` tables.
 - Accept bounded GPS batches.
-- Deduplicate with `(track_id, device_id, client_sequence)`.
+- Deduplicate with `(journey_id, sample_id)`.
 - Accept late/out-of-order batches safely.
 - Store reported accuracy, speed, heading, and client/server times.
 - Add ingestion and retry integration tests.
@@ -279,8 +305,8 @@ Scope:
 - Define the `RouteMatrix` port.
 - Query Valhalla for car, motorcycle, and walking matrices.
 - Sort by motorcycle road distance by default.
-- Remember the user's latest selected mode.
-- Return a clearly labelled straight-line fallback when routing is unavailable.
+- Store the user's transport preference through the profile API.
+- Return `503` when the selected road matrix is unavailable; omit failed non-selected modes.
 - Add spatial query-plan and partial-provider-failure tests.
 
 ### Phase G — Sharing and outing lifecycle
@@ -289,9 +315,9 @@ Scope:
 
 Scope:
 
-- Add share exports, ordered export items, and share links.
+- Add immutable JSON itinerary snapshots and share links in one owner-scoped table.
 - Store only hashes of high-entropy public tokens.
-- Add explicit privacy selections for notes, photos, route, and coordinates.
+- Validate selected stops/photos and allow share-only order and text overrides.
 - Add revocation and optional expiration.
 - Render responsive public HTML from Go with Open Graph metadata.
 - Prevent indexing and referrer leakage.
@@ -311,7 +337,7 @@ Scope:
 
 Scope:
 
-- Add OpenTelemetry-compatible traces and metrics.
+- Add OpenTelemetry-compatible traces and aggregate HTTP metrics.
 - Instrument HTTP, PostgreSQL, jobs, uploads, and provider adapters.
 - Ensure sensitive coordinates, tokens, and signed URLs are redacted.
 - Add operational dashboards/queries as documentation.
@@ -320,11 +346,11 @@ Scope:
 
 Scope:
 
-- Add end-to-end tests for the primary backend workflows.
+- Add contract, ownership/spatial integration, and performance tests for core workflows.
 - Add authorization-isolation tests for independent users.
 - Add baseline load tests for GPS ingestion and nearby queries.
 - Record PostGIS query plans and latency budgets.
-- Add account data deletion/export coverage.
+- Record account export/deletion as a pre-public hardening gap.
 
 #### Commit 24: `docs(backend): finalize operations and API handbook`
 
@@ -335,7 +361,7 @@ Scope:
 - Document external-service attribution and usage constraints.
 - Reconcile OpenAPI and architecture documents with the implemented system.
 
-## 5. After the backend
+## 6. After the backend
 
 Once the backend contract is stable enough for client work:
 
@@ -346,12 +372,12 @@ Once the backend contract is stable enough for client work:
 
 The Android Capacitor work must not be pulled into an earlier backend commit.
 
-## 6. First execution checkpoint
+## 7. Next execution checkpoint
 
-The first implementation checkpoint is Commit 1 only:
+The backend checkpoint is complete. The next implementation checkpoint is a PWA design/system skeleton that consumes the OpenAPI contract:
 
 ```text
-chore(backend): bootstrap Go API with Gin
+chore(web): bootstrap static Next.js PWA shell
 ```
 
-Stop after its tests pass and review the resulting structure before proceeding to CI, Docker, databases, or domain code.
+Capacitor and Android background tracking remain the final phase after the PWA is useful without them.
