@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Pinerary API
   version: 0.1.0
@@ -202,7 +202,7 @@ paths:
     get:
       operationId: getJourneyRoute
       responses:
-        "200": {description: Cleaned route segments, map-matched when available}
+        "200": {description: "Cleaned route segments, map-matched when available"}
         default: {$ref: "#/components/responses/Error"}
   /journeys/{journeyId}/stops:
     parameters:
@@ -339,10 +339,10 @@ paths:
               required: [journey_id, client_request_id, content_type]
               properties:
                 journey_id: {type: string, format: uuid}
-                stop_id: {type: [string, "null"], format: uuid}
+                stop_id: {type: string, format: uuid, nullable: true}
                 client_request_id: {type: string, format: uuid}
                 content_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
-                captured_at: {type: [string, "null"], format: date-time}
+                captured_at: {type: string, format: date-time, nullable: true}
       responses:
         "201":
           description: Short-lived signed upload URL
@@ -379,7 +379,7 @@ paths:
               type: object
               properties:
                 title: {type: string}
-                expires_at: {type: [string, "null"], format: date-time}
+                expires_at: {type: string, format: date-time, nullable: true}
                 items:
                   type: array
                   description: Share-only order; omitting it uses the original timeline.
@@ -388,8 +388,8 @@ paths:
                     required: [stop_id]
                     properties:
                       stop_id: {type: string, format: uuid}
-                      display_name: {type: [string, "null"]}
-                      note: {type: [string, "null"]}
+                      display_name: {type: string, nullable: true}
+                      note: {type: string, nullable: true}
                       photo_ids: {type: array, items: {type: string, format: uuid}}
       responses:
         "201":
@@ -480,7 +480,7 @@ components:
         label: {type: string}
         status: {type: string, enum: [active, ended, expired]}
         started_at: {type: string, format: date-time}
-        ended_at: {type: [string, "null"], format: date-time}
+        ended_at: {type: string, format: date-time, nullable: true}
     LocationPoint:
       type: object
       required: [sample_id, captured_at, latitude, longitude]

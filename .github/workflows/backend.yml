@@ -44,3 +44,40 @@ jobs:
         with:
           version: v2.13
           working-directory: backend
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5-alpine
+        env:
+          POSTGRES_DB: pinerary
+          POSTGRES_USER: pinerary
+          POSTGRES_PASSWORD: pinerary
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pinerary -d pinerary"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      PINERARY_DATABASE_URL: postgres://pinerary:pinerary@localhost:5432/pinerary?sslmode=disable
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: go run ./cmd/migrate up
+      - run: go test -tags=integration ./internal/integration
+      - run: go test -run '^$' -bench BenchmarkCleanTenThousandPoints -benchtime=100ms ./internal/tracking
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build -t pinerary-api:test backend
