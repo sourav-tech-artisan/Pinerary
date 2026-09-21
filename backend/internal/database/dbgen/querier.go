@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	AddOutboxEvent(ctx context.Context, arg AddOutboxEventParams) (OutboxEvent, error)
+	ClaimAbandonedPhotoUploads(ctx context.Context, arg ClaimAbandonedPhotoUploadsParams) ([]ClaimAbandonedPhotoUploadsRow, error)
 	ClaimNextJobs(ctx context.Context, arg ClaimNextJobsParams) ([]BackgroundJob, error)
 	ClearDevicePushSubscription(ctx context.Context, id pgtype.UUID) error
 	CompleteJob(ctx context.Context, id int64) error
@@ -24,6 +25,7 @@ type Querier interface {
 	CreatePhotoUpload(ctx context.Context, arg CreatePhotoUploadParams) (Photo, error)
 	CreatePlace(ctx context.Context, arg CreatePlaceParams) (CreatePlaceRow, error)
 	CreateRouteSegment(ctx context.Context, arg CreateRouteSegmentParams) (pgtype.UUID, error)
+	DeleteAbandonedPhotoUpload(ctx context.Context, arg DeleteAbandonedPhotoUploadParams) (int64, error)
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) (int64, error)
 	DeletePlace(ctx context.Context, arg DeletePlaceParams) (int64, error)
 	DeleteRouteSegments(ctx context.Context, journeyID pgtype.UUID) error

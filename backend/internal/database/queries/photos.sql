@@ -41,3 +41,21 @@ UPDATE photos SET status = 'failed', updated_at = now() WHERE id = $1;
 SELECT * FROM photos
 WHERE owner_id = $1 AND journey_id = $2 AND stop_id = $3 AND status = 'processed'
 ORDER BY captured_at NULLS LAST, created_at;
+
+-- name: ClaimAbandonedPhotoUploads :many
+WITH candidates AS (
+    SELECT id FROM photos
+    WHERE photos.status IN ('pending', 'failed') AND photos.created_at < sqlc.arg(created_before)
+    ORDER BY photos.created_at, photos.id
+    LIMIT sqlc.arg(batch_size)
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE photos AS photo
+SET status = 'failed', updated_at = now()
+FROM candidates
+WHERE photo.id = candidates.id
+RETURNING photo.id, photo.object_key;
+
+-- name: DeleteAbandonedPhotoUpload :execrows
+DELETE FROM photos
+WHERE id = sqlc.arg(id) AND status = 'failed' AND created_at < sqlc.arg(created_before);

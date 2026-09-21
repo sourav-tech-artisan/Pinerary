@@ -27,6 +27,10 @@ type Store interface {
 	Stat(context.Context, string) (ObjectInfo, error)
 }
 
+type Deleter interface {
+	Delete(context.Context, string) error
+}
+
 func (s *MinIOStore) PresignGet(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {
 	result, err := s.client.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
 	if err != nil {
@@ -95,6 +99,13 @@ func (s *MinIOStore) Put(ctx context.Context, key string, reader io.Reader, size
 	_, err := s.client.PutObject(ctx, s.bucket, key, reader, size, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
 		return fmt.Errorf("put object: %w", err)
+	}
+	return nil
+}
+
+func (s *MinIOStore) Delete(ctx context.Context, key string) error {
+	if err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("delete object: %w", err)
 	}
 	return nil
 }

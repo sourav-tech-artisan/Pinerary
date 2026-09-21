@@ -11,6 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimAbandonedPhotoUploads = `-- name: ClaimAbandonedPhotoUploads :many
+WITH candidates AS (
+    SELECT id FROM photos
+    WHERE photos.status IN ('pending', 'failed') AND photos.created_at < $1
+    ORDER BY photos.created_at, photos.id
+    LIMIT $2
+    FOR UPDATE SKIP LOCKED
+)
+UPDATE photos AS photo
+SET status = 'failed', updated_at = now()
+FROM candidates
+WHERE photo.id = candidates.id
+RETURNING photo.id, photo.object_key
+`
+
+type ClaimAbandonedPhotoUploadsParams struct {
+	CreatedBefore pgtype.Timestamptz `json:"created_before"`
+	BatchSize     int32              `json:"batch_size"`
+}
+
+type ClaimAbandonedPhotoUploadsRow struct {
+	ID        pgtype.UUID `json:"id"`
+	ObjectKey string      `json:"object_key"`
+}
+
+func (q *Queries) ClaimAbandonedPhotoUploads(ctx context.Context, arg ClaimAbandonedPhotoUploadsParams) ([]ClaimAbandonedPhotoUploadsRow, error) {
+	rows, err := q.db.Query(ctx, claimAbandonedPhotoUploads, arg.CreatedBefore, arg.BatchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimAbandonedPhotoUploadsRow{}
+	for rows.Next() {
+		var i ClaimAbandonedPhotoUploadsRow
+		if err := rows.Scan(&i.ID, &i.ObjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const completePhotoUpload = `-- name: CompletePhotoUpload :one
 UPDATE photos
 SET status = 'uploaded', byte_size = $3, checksum_sha256 = $4, updated_at = now()
@@ -111,6 +156,24 @@ func (q *Queries) CreatePhotoUpload(ctx context.Context, arg CreatePhotoUploadPa
 		&i.ChecksumSha256,
 	)
 	return i, err
+}
+
+const deleteAbandonedPhotoUpload = `-- name: DeleteAbandonedPhotoUpload :execrows
+DELETE FROM photos
+WHERE id = $1 AND status = 'failed' AND created_at < $2
+`
+
+type DeleteAbandonedPhotoUploadParams struct {
+	ID            pgtype.UUID        `json:"id"`
+	CreatedBefore pgtype.Timestamptz `json:"created_before"`
+}
+
+func (q *Queries) DeleteAbandonedPhotoUpload(ctx context.Context, arg DeleteAbandonedPhotoUploadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAbandonedPhotoUpload, arg.ID, arg.CreatedBefore)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getPhotoByID = `-- name: GetPhotoByID :one

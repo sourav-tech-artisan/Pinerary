@@ -72,6 +72,11 @@ func run() error {
 	}
 	photoProcessor := media.NewProcessor(dbgen.New(pool), objectStore, cfg.MaxPhotoBytes)
 	runner.Register("photo.process", photoProcessor.HandleJob)
+	photoCleanup := media.NewCleanupProcessor(dbgen.New(pool), objectStore)
+	runner.Register("photo.cleanup", photoCleanup.HandleJob)
+	if err := photoCleanup.Schedule(ctx, time.Now().UTC()); err != nil {
+		return err
+	}
 	pushSender := notifications.NewWebPushSender(cfg.VAPIDSubscriber, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey)
 	lifecycleProcessor := notifications.NewLifecycleProcessor(dbgen.New(pool), pushSender)
 	runner.Register("outing.warn", lifecycleProcessor.HandleWarning)
