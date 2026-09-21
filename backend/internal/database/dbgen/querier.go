@@ -51,6 +51,7 @@ type Querier interface {
 	MarkOutboxEventPublished(ctx context.Context, id int64) error
 	MarkPhotoFailed(ctx context.Context, id pgtype.UUID) error
 	MarkPhotoProcessed(ctx context.Context, arg MarkPhotoProcessedParams) (Photo, error)
+	NearbyPlaceCandidates(ctx context.Context, arg NearbyPlaceCandidatesParams) ([]NearbyPlaceCandidatesRow, error)
 	NextJourneyStopSequence(ctx context.Context, journeyID pgtype.UUID) (int64, error)
 	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
 	RetryJob(ctx context.Context, arg RetryJobParams) error

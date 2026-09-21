@@ -21,6 +21,7 @@ type RouterConfig struct {
 	GeocodingService geocodingService
 	TrackingService  trackingService
 	MediaService     mediaService
+	NearbyService    nearbyService
 	Verifier         identity.Verifier
 }
 
@@ -79,6 +80,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	media := mediaHandler{service: config.MediaService}
 	api.POST("/photos/upload-intents", media.reserve)
 	api.POST("/photos/:photoId/complete", media.complete)
+
+	nearby := nearbyHandler{service: config.NearbyService}
+	api.GET("/places/nearby", nearby.find)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

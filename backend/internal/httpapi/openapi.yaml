@@ -286,7 +286,34 @@ paths:
         - {name: mode, in: query, schema: {$ref: "#/components/schemas/TransportMode"}}
       responses:
         "200":
-          description: Saved places ordered by road travel time
+          description: Saved places ordered by road distance for the selected mode, with all available mode estimates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sort_mode, items]
+                properties:
+                  sort_mode: {$ref: "#/components/schemas/TransportMode"}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [place_id, name, latitude, longitude, routes]
+                      properties:
+                        place_id: {type: string, format: uuid}
+                        name: {type: string}
+                        latitude: {type: number, format: double}
+                        longitude: {type: number, format: double}
+                        straight_line_m:
+                          type: number
+                          description: Internal prefilter diagnostic; not the default displayed distance.
+                        routes:
+                          type: object
+                          additionalProperties:
+                            type: object
+                            properties:
+                              distance_m: {type: number}
+                              duration_s: {type: integer}
         default:
           $ref: "#/components/responses/Error"
   /places/reverse-geocode:

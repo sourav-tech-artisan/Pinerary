@@ -19,8 +19,10 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/media"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/nearby"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
@@ -76,6 +78,11 @@ func run() error {
 		return err
 	}
 	mediaService := media.NewService(databasePool, objectStore, cfg.MaxPhotoBytes)
+	valhalla, err := routing.NewValhallaClient(cfg.ValhallaURL, nil)
+	if err != nil {
+		return err
+	}
+	nearbyService := nearby.NewService(queries, valhalla)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
@@ -89,6 +96,7 @@ func run() error {
 			GeocodingService: geocodingService,
 			TrackingService:  trackingService,
 			MediaService:     mediaService,
+			NearbyService:    nearbyService,
 			Verifier:         verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
