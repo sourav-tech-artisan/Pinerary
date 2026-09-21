@@ -3,8 +3,8 @@
 | Field | Value |
 | --- | --- |
 | Document type | As-built design and code-reading guide |
-| Backend status | Feature-complete baseline; runtime sign-off pending |
-| Last reviewed | 2026-09-21 |
+| Backend status | Core runtime verified locally; Valhalla provisioning pending |
+| Last reviewed | 2026-09-22 |
 | Language/framework | Go 1.24, Gin, `net/http` |
 | Persistence | PostgreSQL 17 + PostGIS, `pgx`, `sqlc`, Goose |
 | Runtime roles | API, worker, migration command |
@@ -14,16 +14,16 @@
 
 The repository contains a coherent backend baseline, not a mock server. It implements authentication, independent-user isolation, journey lifecycle, saved places, immutable timeline stops, GPS ingestion and cleanup, Valhalla map matching, private photo processing, road-ranked nearby search, public itinerary snapshots, outing expiry, rate limiting, telemetry, migrations, and a durable PostgreSQL worker.
 
-It compiles and its unit, race, contract, and lightweight integration suites pass. However, it has not yet received a full local runtime sign-off because PostgreSQL, MinIO, and Valhalla are not currently running on the development machine. That distinction matters:
+It compiles and its unit, race, contract, and integration suites pass. A live local run has also verified migrations, API/worker startup, PostGIS persistence, direct MinIO upload, thumbnail processing, GPS cleanup, journey completion, and public sharing. Valhalla provisioning is the remaining external runtime gap:
 
 | Question | Answer |
 | --- | --- |
 | Is the code buildable? | Yes. API, worker, and migration binaries build. |
-| Can Postman call it today? | Yes after PostgreSQL/PostGIS and MinIO are started, migrations run, and the API starts. |
+| Can Postman call it today? | Yes. PostgreSQL/PostGIS and MinIO are installed locally, and the supplied collection targets the development API. |
 | Can every feature be exercised immediately? | No. Nearby road ranking and map matching also need a live Valhalla instance. Reverse geocoding needs Nominatim connectivity. |
 | Is development authentication available? | Yes. Any non-empty bearer token becomes a stable local user. |
-| Has a real full-stack smoke test passed locally? | Not yet; the Docker daemon is currently unavailable. |
-| Should the frontend start now? | Prefer completing the readiness items in section 23 first, especially live smoke testing, Valhalla, and the full OpenAPI contract. |
+| Has a real full-stack smoke test passed locally? | Yes for the core flow; Valhalla-dependent road ranking and map matching still need their regional graph. |
+| Should the frontend start now? | Prefer completing the remaining readiness items in section 23, especially Valhalla and the full OpenAPI contract. |
 
 ## 2. System context
 
@@ -772,10 +772,10 @@ Current local verification:
 - API/worker/migration binary build: passing
 - Compose configuration validation: passing
 - 10,000-point cleaner benchmark: approximately 0.99 ms/op on Apple M2
-- Live PostGIS/MinIO end-to-end run: pending because Docker is stopped
+- Live PostGIS/MinIO end-to-end run: passing on 2026-09-22, including API, worker, photo processing, GPS cleanup, and sharing
 - Local `golangci-lint`: not installed; configured in CI
 
-The current PostGIS integration suite proves owner isolation, spatial candidate filtering, and idempotent journey creation. It is not yet a full API workflow test.
+The PostGIS integration suite proves owner isolation, spatial candidate filtering, and idempotent journey creation. A manual full API workflow has passed; converting it into a repeatable automated test remains work.
 
 ## 22. Postman interaction guide
 
@@ -856,7 +856,6 @@ The core implementation is substantial, but these items should be closed before 
 
 | Priority | Item | Why it matters |
 | --- | --- | --- |
-| P0 | Run migrations, API, worker, and the Postman smoke collection against live PostGIS/MinIO | Compilation cannot prove runtime wiring, SQL migrations, presigned uploads, or worker behaviour |
 | P0 | Provision/configure a Valhalla graph for the initial region | Nearby road distance and map matching are core MVP features and currently have no running dependency |
 | P0 | Complete OpenAPI request/response schemas and add handler/contract conformance checks | The current file lists every route but several responses are descriptions only, which is insufficient for reliable frontend type generation |
 | P0 | Add one database-backed API workflow test | The current integration tests cover important queries but not create journey → stop → GPS → end → share as an HTTP flow |
@@ -866,7 +865,7 @@ The core implementation is substantial, but these items should be closed before 
 | P1 | Configure production S3 CORS, TLS ingress, secrets, backups, and monitoring | Deployment work rather than missing domain code |
 | Pre-public | Account export/deletion, audit events, retention policy, broader load/security tests | Privacy and operational readiness for users beyond the initial development group |
 
-The first four P0 items are the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
+The three remaining P0 items are the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
 
 ## 24. Design trade-offs and interview discussion
 

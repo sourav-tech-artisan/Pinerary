@@ -16,6 +16,8 @@ PostgreSQL/PostGIS is the source of truth, MinIO provides local S3-compatible st
 
 The Compose file starts PostgreSQL/PostGIS and MinIO. Valhalla is deliberately external because its image and regional routing graph depend on the deployment region.
 
+The official PostGIS image is pinned to `linux/amd64`; Docker Desktop uses emulation on Apple Silicon. The first pull/start can therefore take longer, but subsequent starts reuse the image and volumes.
+
 ## Local setup
 
 From `backend/`:
@@ -62,6 +64,8 @@ Never enable `PINERARY_AUTH_MODE=development` in a public environment. Productio
 - MinIO S3 endpoint: `http://localhost:9000`
 - Valhalla default: `http://localhost:8002`
 - Nominatim default: `https://nominatim.openstreetmap.org`
+
+Self-hosted Valhalla does not require an account or API key. It requires an OpenStreetMap PBF extract and a locally built graph for the chosen region. Public Nominatim also has no API key, but its usage policy requires an identifying application/contact and permits only light user-triggered traffic.
 
 If Valhalla is unavailable, normal capture still works; nearby road ranking returns `503`, and queued map-matching jobs retry before entering the dead-letter state. Straight-line distance is only used to shortlist candidates, never as the successful default nearby result. The worker also removes photo uploads that remain pending for more than 24 hours.
 
