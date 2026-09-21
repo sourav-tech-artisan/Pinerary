@@ -10,6 +10,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type Handler func(context.Context, []byte) error
@@ -83,13 +86,22 @@ func (r *Runner) work(ctx context.Context) error {
 }
 
 func (r *Runner) handle(ctx context.Context, job dbgen.BackgroundJob) {
+	ctx, span := otel.Tracer("pinerary/jobs").Start(ctx, "job "+job.JobType)
+	span.SetAttributes(attribute.String("job.type", job.JobType), attribute.Int64("job.id", job.ID))
+	defer span.End()
+
 	handler, ok := r.handlers[job.JobType]
 	if !ok {
-		r.retry(ctx, job, fmt.Errorf("no handler registered for %q", job.JobType))
+		err := fmt.Errorf("no handler registered for %q", job.JobType)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		r.retry(ctx, job, err)
 		return
 	}
 
 	if err := handler(ctx, job.Payload); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		r.retry(ctx, job, err)
 		return
 	}

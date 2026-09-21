@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/identity"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 type RouterConfig struct {
@@ -23,6 +24,7 @@ type RouterConfig struct {
 	MediaService     mediaService
 	NearbyService    nearbyService
 	SharingService   sharingService
+	Metrics          *Metrics
 	Verifier         identity.Verifier
 }
 
@@ -31,11 +33,17 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
+	metrics := config.Metrics
+	if metrics == nil {
+		metrics = &Metrics{}
+	}
 
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
 	router.Use(
 		requestID(),
+		otelgin.Middleware("pinerary-api"),
+		metricsMiddleware(metrics),
 		securityHeaders(),
 		cors(config.AllowedOrigins),
 		accessLog(logger),
@@ -44,6 +52,7 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	router.NoRoute(notFound)
 	router.NoMethod(methodNotAllowed)
 	router.GET("/openapi.yaml", serveOpenAPI)
+	router.GET("/metrics", metrics.serve)
 	share := sharingHandler{service: config.SharingService}
 	router.GET("/api/v1/shares/:token", share.resolveJSON)
 	router.GET("/s/:token", share.resolvePage)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -102,5 +103,20 @@ func TestReadinessReportsDependencyFailure(t *testing.T) {
 
 	if recorder.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, recorder.Code)
+	}
+}
+
+func TestMetricsEndpoint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(RouterConfig{})
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "pinerary_http_requests_total") {
+		t.Fatalf("unexpected metrics body %q", recorder.Body.String())
 	}
 }

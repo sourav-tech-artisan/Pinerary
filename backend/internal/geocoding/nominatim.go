@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Result struct {
@@ -38,7 +40,7 @@ func NewNominatimClient(baseURL, userAgent string, httpClient *http.Client) (*No
 		return nil, fmt.Errorf("Nominatim user agent is required")
 	}
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 8 * time.Second}
+		httpClient = &http.Client{Timeout: 8 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	}
 	return &NominatimClient{
 		baseURL: strings.TrimRight(baseURL, "/"), userAgent: userAgent,

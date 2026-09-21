@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const requestIDHeader = "X-Request-ID"
@@ -45,12 +46,15 @@ func accessLog(logger *slog.Logger) gin.HandlerFunc {
 		if ctx.Request.Method == http.MethodGet && strings.HasPrefix(loggedPath, "/api/v1/shares/") {
 			loggedPath = "/api/v1/shares/:token"
 		}
+		spanContext := trace.SpanContextFromContext(ctx.Request.Context())
 		logger.InfoContext(ctx.Request.Context(), "request completed",
 			"request_id", ctx.GetString(requestIDHeader),
 			"method", ctx.Request.Method,
 			"path", loggedPath,
 			"status", ctx.Writer.Status(),
 			"duration_ms", time.Since(startedAt).Milliseconds(),
+			"trace_id", spanContext.TraceID().String(),
+			"span_id", spanContext.SpanID().String(),
 		)
 	}
 }

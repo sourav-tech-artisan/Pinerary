@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type ObjectInfo struct {
@@ -41,6 +43,7 @@ type MinIOStore struct {
 func NewMinIOStore(endpoint, accessKey, secretKey, bucket string, useTLS bool) (*MinIOStore, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds: credentials.NewStaticV4(accessKey, secretKey, ""), Secure: useTLS,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create S3-compatible client: %w", err)

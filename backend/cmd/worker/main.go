@@ -18,6 +18,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/notifications"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/telemetry"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
@@ -33,6 +34,15 @@ func run() error {
 	defer stop()
 
 	cfg := config.Load()
+	telemetryShutdown, err := telemetry.Setup(ctx, "pinerary-worker", cfg.OTLPEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = telemetryShutdown(shutdownContext)
+	}()
 	pool, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err

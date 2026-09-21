@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Coordinate struct {
@@ -31,7 +33,7 @@ func NewValhallaClient(baseURL string, httpClient *http.Client) (*ValhallaClient
 		return nil, fmt.Errorf("invalid Valhalla URL: %w", err)
 	}
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 20 * time.Second}
+		httpClient = &http.Client{Timeout: 20 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	}
 	return &ValhallaClient{baseURL: strings.TrimRight(baseURL, "/"), httpClient: httpClient}, nil
 }

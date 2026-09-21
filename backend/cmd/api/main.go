@@ -24,6 +24,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/sharing"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/telemetry"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
@@ -48,6 +49,17 @@ func run() error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	startupContext, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelStartup()
+	telemetryShutdown, err := telemetry.Setup(startupContext, "pinerary-api", cfg.OTLPEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := telemetryShutdown(shutdownContext); err != nil {
+			logger.Error("telemetry shutdown failed", "error", err)
+		}
+	}()
 
 	databasePool, err := database.Open(startupContext, cfg.DatabaseURL)
 	if err != nil {

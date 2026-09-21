@@ -41,6 +41,7 @@ type Config struct {
 	VAPIDSubscriber    string
 	VAPIDPublicKey     string
 	VAPIDPrivateKey    string
+	OTLPEndpoint       string
 }
 
 func Load() Config {
@@ -69,6 +70,7 @@ func Load() Config {
 		VAPIDSubscriber:    os.Getenv("PINERARY_VAPID_SUBSCRIBER"),
 		VAPIDPublicKey:     os.Getenv("PINERARY_VAPID_PUBLIC_KEY"),
 		VAPIDPrivateKey:    os.Getenv("PINERARY_VAPID_PRIVATE_KEY"),
+		OTLPEndpoint:       os.Getenv("PINERARY_OTEL_EXPORTER_OTLP_ENDPOINT"),
 	}
 }
 
