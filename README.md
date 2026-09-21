@@ -8,12 +8,16 @@ The repository currently contains the completed backend foundation. The PWA is t
 
 - [Architecture and detailed design](docs/architecture-design.md)
 - [Readable architecture page](docs/architecture-design.html)
+- [Backend detailed design and repository guide](docs/backend-detailed-design.md)
+- [Readable backend design artifact](docs/backend-detailed-design.html)
 - [Backend setup](backend/README.md)
 - [Backend API handbook](docs/backend-api.md)
 - [Operations handbook](docs/operations.md)
 - [Backend implementation history](docs/backend-implementation-plan.md)
 
 The HTTP contract is served by a running API at `/openapi.yaml` and is stored at `backend/internal/httpapi/openapi.yaml`.
+
+For manual testing, import the collection and local environment under `docs/postman/`.
 
 ## Repository layout
 

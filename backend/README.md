@@ -111,3 +111,4 @@ docker run --rm --env-file .env --entrypoint /pinerary-migrate pinerary-backend 
 Run migrations as a deployment job before replacing API/worker instances. Do not run `down` automatically in production.
 
 See the [API handbook](../docs/backend-api.md) for workflows and the [operations handbook](../docs/operations.md) for deployment, recovery, and backups.
+The [backend detailed design](../docs/backend-detailed-design.md) explains the repository package-by-package with sequence, state, data, and processing diagrams. A ready-to-import Postman collection and local environment are under [`../docs/postman`](../docs/postman).

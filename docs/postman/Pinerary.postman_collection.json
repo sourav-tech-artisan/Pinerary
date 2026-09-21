@@ -1,0 +1,252 @@
+{
+  "info": {
+    "_postman_id": "ba6a7ef4-2306-4de6-b7df-d315bc19a4b5",
+    "name": "Pinerary Backend MVP",
+    "description": "Run folders in order against the Pinerary local development environment. Development auth accepts any non-empty bearer token. Nearby and map matching require Valhalla; photo derivation requires the worker. The direct photo PUT requires selecting a local binary file manually.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{token}}", "type": "string"}]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is not a server error', function () {",
+          "  pm.expect(pm.response.code).to.be.below(500);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Platform",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/health/live"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('API is live', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "Readiness",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/health/ready"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Database is ready', () => pm.response.to.have.status(200));"]}}]
+        },
+        {
+          "name": "OpenAPI",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/openapi.yaml"}
+        },
+        {
+          "name": "Metrics",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/metrics"}
+        }
+      ]
+    },
+    {
+      "name": "02 - Identity and devices",
+      "item": [
+        {
+          "name": "Get profile",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/me"}
+        },
+        {
+          "name": "Update profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"display_name\": \"Alice Rider\",\n  \"default_transport_mode\": \"motorcycle\"\n}"},
+            "url": "{{baseUrl}}/api/v1/me"
+          }
+        },
+        {
+          "name": "Register web device",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"installation_id\": \"postman-local\",\n  \"platform\": \"web\"\n}"},
+            "url": "{{baseUrl}}/api/v1/devices"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["if (pm.response.code === 201) pm.environment.set('deviceId', pm.response.json().id);"]}}]
+        },
+        {
+          "name": "List devices",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/devices"}
+        }
+      ]
+    },
+    {
+      "name": "03 - Journey and timeline",
+      "item": [
+        {
+          "name": "Create trip",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"client_request_id\": \"{{$guid}}\",\n  \"kind\": \"trip\",\n  \"label\": \"Postman road trip\"\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Trip created', () => pm.response.to.have.status(201));", "if (pm.response.code === 201) {", "  const body = pm.response.json();", "  pm.environment.set('journeyId', body.id);", "  pm.environment.set('journeyVersion', body.version);", "}"]}}]
+        },
+        {
+          "name": "Get journey",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}"}
+        },
+        {
+          "name": "Rename journey",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"label\": \"Postman road trip — updated\",\n  \"version\": {{journeyVersion}}\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.environment.set('journeyVersion', pm.response.json().version);"]}}]
+        },
+        {
+          "name": "Reverse geocode suggestion",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/places/reverse-geocode?latitude=28.5931&longitude=77.2197"},
+          "description": "Requires Nominatim connectivity on the first request for these coordinates."
+        },
+        {
+          "name": "Pin journey stop",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"client_request_id\": \"{{$guid}}\",\n  \"name\": \"Lodhi Garden\",\n  \"note\": \"Morning stop from Postman\",\n  \"latitude\": 28.5931,\n  \"longitude\": 77.2197,\n  \"captured_at\": \"{{$isoTimestamp}}\"\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/stops"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Stop pinned', () => pm.response.to.have.status(201));", "if (pm.response.code === 201) {", "  const body = pm.response.json();", "  pm.environment.set('stopId', body.id);", "  pm.environment.set('placeId', body.place_id);", "}"]}}]
+        },
+        {
+          "name": "List journey stops",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/stops"}
+        },
+        {
+          "name": "Upload GPS batch",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"points\": [\n    {\n      \"sample_id\": \"{{$guid}}\",\n      \"captured_at\": \"{{trackTime1}}\",\n      \"latitude\": 28.5931,\n      \"longitude\": 77.2197,\n      \"accuracy_m\": 8,\n      \"speed_mps\": 12,\n      \"heading_deg\": 90\n    },\n    {\n      \"sample_id\": \"{{$guid}}\",\n      \"captured_at\": \"{{trackTime2}}\",\n      \"latitude\": 28.6031,\n      \"longitude\": 77.2297,\n      \"accuracy_m\": 7,\n      \"speed_mps\": 12,\n      \"heading_deg\": 95\n    }\n  ]\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/locations/batch"
+          },
+          "description": "The worker derives route segments asynchronously.",
+          "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["const now = Date.now();", "pm.variables.set('trackTime1', new Date(now - 120000).toISOString());", "pm.variables.set('trackTime2', new Date(now - 60000).toISOString());"]}}]
+        },
+        {
+          "name": "Get derived route",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/route"},
+          "description": "Run after the worker has handled track.process. Map matching additionally requires Valhalla."
+        }
+      ]
+    },
+    {
+      "name": "04 - Saved places and nearby",
+      "item": [
+        {
+          "name": "Save standalone place",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"client_request_id\": \"{{$guid}}\",\n  \"name\": \"India Gate\",\n  \"notes\": \"Saved before visiting\",\n  \"latitude\": 28.6129,\n  \"longitude\": 77.2295\n}"},
+            "url": "{{baseUrl}}/api/v1/places"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["if (pm.response.code === 201) pm.environment.set('placeId', pm.response.json().id);"]}}]
+        },
+        {
+          "name": "List saved places",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/places?limit=100"}
+        },
+        {
+          "name": "Nearby by motorcycle road distance",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/places/nearby?latitude=28.6139&longitude=77.2090&limit=10&mode=motorcycle"},
+          "description": "Requires a live Valhalla endpoint with graph coverage for these coordinates."
+        }
+      ]
+    },
+    {
+      "name": "05 - Photos",
+      "item": [
+        {
+          "name": "Reserve photo upload",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"journey_id\": \"{{journeyId}}\",\n  \"stop_id\": \"{{stopId}}\",\n  \"client_request_id\": \"{{$guid}}\",\n  \"content_type\": \"{{contentType}}\",\n  \"captured_at\": \"{{$isoTimestamp}}\"\n}"},
+            "url": "{{baseUrl}}/api/v1/photos/upload-intents"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Upload reserved', () => pm.response.to.have.status(201));", "if (pm.response.code === 201) {", "  const body = pm.response.json();", "  pm.environment.set('photoId', body.photo_id);", "  pm.environment.set('uploadUrl', body.upload_url);", "}"]}}]
+        },
+        {
+          "name": "PUT original photo (select file manually)",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "{{contentType}}"}],
+            "body": {"mode": "file", "file": {"src": ""}},
+            "url": "{{uploadUrl}}",
+            "description": "In Postman Body > binary, choose a local file matching contentType. The URL expires after 15 minutes."
+          }
+        },
+        {
+          "name": "Complete photo upload",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"checksum_sha256\": \"\"\n}"},
+            "url": "{{baseUrl}}/api/v1/photos/{{photoId}}/complete"
+          }
+        },
+        {
+          "name": "List processed stop photos",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/stops/{{stopId}}/photos"},
+          "description": "Run after the worker has handled photo.process."
+        }
+      ]
+    },
+    {
+      "name": "06 - End and share",
+      "item": [
+        {
+          "name": "End journey",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"version\": {{journeyVersion}}\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/end"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["if (pm.response.code === 200) pm.environment.set('journeyVersion', pm.response.json().version);"]}}]
+        },
+        {
+          "name": "Create public itinerary",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"title\": \"Postman road trip\",\n  \"expires_at\": null,\n  \"items\": [\n    {\n      \"stop_id\": \"{{stopId}}\",\n      \"display_name\": \"Lodhi Garden\",\n      \"note\": \"Shared from the Postman smoke flow\",\n      \"photo_ids\": []\n    }\n  ]\n}"},
+            "url": "{{baseUrl}}/api/v1/journeys/{{journeyId}}/shares"
+          },
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Share created', () => pm.response.to.have.status(201));", "if (pm.response.code === 201) {", "  const body = pm.response.json();", "  pm.environment.set('shareId', body.id);", "  pm.environment.set('shareToken', body.url.split('/').pop());", "}"]}}]
+        },
+        {
+          "name": "Get public itinerary JSON",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/api/v1/shares/{{shareToken}}"}
+        },
+        {
+          "name": "Open public itinerary HTML",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/s/{{shareToken}}"}
+        },
+        {
+          "name": "Revoke public itinerary",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/api/v1/share-links/{{shareId}}"}
+        },
+        {
+          "name": "Confirm revoked itinerary is gone",
+          "request": {"auth": {"type": "noauth"}, "method": "GET", "url": "{{baseUrl}}/api/v1/shares/{{shareToken}}"},
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Revoked share is not found', () => pm.response.to.have.status(404));"]}}]
+        }
+      ]
+    }
+  ]
+}

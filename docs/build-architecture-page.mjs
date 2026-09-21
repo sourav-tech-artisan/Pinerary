@@ -3,10 +3,30 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const docsDir = dirname(fileURLToPath(import.meta.url));
-const markdownPath = join(docsDir, "architecture-design.md");
-const outputPath = join(docsDir, "architecture-design.html");
+const sourceName = process.argv[2] ?? "architecture-design.md";
+const outputName = process.argv[3] ?? sourceName.replace(/\.md$/, ".html");
+const markdownPath = join(docsDir, sourceName);
+const outputPath = join(docsDir, outputName);
 const markdown = await readFile(markdownPath, "utf8");
 const embeddedMarkdown = JSON.stringify(markdown).replaceAll("<", "\\u003c");
+const isBackendGuide = sourceName === "backend-detailed-design.md";
+const page = isBackendGuide ? {
+  description: "As-built Pinerary backend design and repository guide",
+  browserTitle: "Pinerary — Backend Detailed Design",
+  eyebrow: "As-built system · Repository guide",
+  heroTitle: "Backend Detailed<br />Design",
+  copy: "A code-level guide to the Go API, PostGIS model, durable jobs, route processing, private media, road search, and public itinerary flows.",
+  status: "As-built backend guide",
+  footer: "Pinerary backend design artifact",
+} : {
+  description: "Pinerary architecture and detailed technical design",
+  browserTitle: "Pinerary — Architecture & Detailed Design",
+  eyebrow: "System design · Architecture review",
+  heroTitle: "Architecture &<br />Detailed Design",
+  copy: "A backend-led, offline-first travel journal with automatic route tracking, geospatial discovery, private media, and shareable itineraries.",
+  status: "Backend implemented · PWA pending",
+  footer: "Pinerary architecture artifact",
+};
 
 const html = String.raw`<!doctype html>
 <html lang="en">
@@ -14,8 +34,8 @@ const html = String.raw`<!doctype html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
-  <meta name="description" content="Pinerary architecture and detailed technical design" />
-  <title>Pinerary — Architecture & Detailed Design</title>
+  <meta name="description" content="${page.description}" />
+  <title>${page.browserTitle}</title>
   <style>
     :root {
       --bg: #f4f7f5;
@@ -418,11 +438,11 @@ const html = String.raw`<!doctype html>
   </header>
 
   <section class="hero">
-    <p class="eyebrow">System design · Architecture review</p>
-    <h1>Architecture &<br />Detailed Design</h1>
-    <p class="hero-copy">A backend-led, offline-first travel journal with automatic route tracking, geospatial discovery, private media, and shareable itineraries.</p>
+    <p class="eyebrow">${page.eyebrow}</p>
+    <h1>${page.heroTitle}</h1>
+    <p class="hero-copy">${page.copy}</p>
     <div class="chips">
-      <span class="chip primary">Draft for review</span>
+      <span class="chip primary">${page.status}</span>
       <span class="chip">Go + Gin</span>
       <span class="chip">PostgreSQL + PostGIS</span>
       <span class="chip">Next.js PWA</span>
@@ -443,7 +463,7 @@ const html = String.raw`<!doctype html>
         <option value="">Jump to section…</option>
       </select>
       <article class="document" id="document"></article>
-      <footer class="reading-footer">Pinerary architecture artifact · Generated from <code>architecture-design.md</code></footer>
+      <footer class="reading-footer">${page.footer} · Generated from <code>${sourceName}</code></footer>
     </section>
   </main>
 
