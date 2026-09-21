@@ -23,6 +23,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/sharing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
 
@@ -83,6 +84,7 @@ func run() error {
 		return err
 	}
 	nearbyService := nearby.NewService(queries, valhalla)
+	sharingService := sharing.NewService(queries, objectStore, cfg.PublicBaseURL)
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
@@ -97,6 +99,7 @@ func run() error {
 			TrackingService:  trackingService,
 			MediaService:     mediaService,
 			NearbyService:    nearbyService,
+			SharingService:   sharingService,
 			Verifier:         verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,

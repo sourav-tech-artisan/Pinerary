@@ -21,7 +21,16 @@ type Store interface {
 	Get(context.Context, string) (io.ReadCloser, error)
 	Put(context.Context, string, io.Reader, int64, string) error
 	PresignPut(context.Context, string, time.Duration) (*url.URL, error)
+	PresignGet(context.Context, string, time.Duration) (*url.URL, error)
 	Stat(context.Context, string) (ObjectInfo, error)
+}
+
+func (s *MinIOStore) PresignGet(ctx context.Context, key string, expiry time.Duration) (*url.URL, error) {
+	result, err := s.client.PresignedGetObject(ctx, s.bucket, key, expiry, nil)
+	if err != nil {
+		return nil, fmt.Errorf("presign object download: %w", err)
+	}
+	return result, nil
 }
 
 type MinIOStore struct {

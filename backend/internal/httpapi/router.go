@@ -22,6 +22,7 @@ type RouterConfig struct {
 	TrackingService  trackingService
 	MediaService     mediaService
 	NearbyService    nearbyService
+	SharingService   sharingService
 	Verifier         identity.Verifier
 }
 
@@ -43,6 +44,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	router.NoRoute(notFound)
 	router.NoMethod(methodNotAllowed)
 	router.GET("/openapi.yaml", serveOpenAPI)
+	share := sharingHandler{service: config.SharingService}
+	router.GET("/api/v1/shares/:token", share.resolveJSON)
+	router.GET("/s/:token", share.resolvePage)
 
 	api := router.Group("/api/v1")
 	api.Use(authenticate(config.Verifier, config.UserProvisioner))
@@ -83,6 +87,9 @@ func NewRouter(config RouterConfig) *gin.Engine {
 
 	nearby := nearbyHandler{service: config.NearbyService}
 	api.GET("/places/nearby", nearby.find)
+
+	api.POST("/journeys/:journeyId/shares", share.create)
+	api.DELETE("/share-links/:shareId", share.revoke)
 
 	router.GET("/health/live", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})

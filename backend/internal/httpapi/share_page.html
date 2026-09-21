@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:title" content="{{.Title}}">
+  <meta property="og:description" content="A shared Pinerary itinerary with {{len .Items}} stops.">
+  <title>{{.Title}} · Pinerary</title>
+  <style>
+    :root { color-scheme: light; --ink:#17231d; --muted:#68756e; --paper:#f4f1e9; --card:#fffefa; --accent:#e85d3f; --line:#c9d3cc; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 system-ui,-apple-system,sans-serif; }
+    main { width:min(760px,100%); margin:auto; padding:32px 18px 64px; }
+    header { padding:24px 6px; }
+    h1 { margin:0 0 6px; font:700 clamp(2rem,8vw,4rem)/1.02 Georgia,serif; letter-spacing:-.04em; }
+    .dates,.time { color:var(--muted); }
+    .map { background:#dfe8df; border:1px solid #ccd6cd; border-radius:24px; margin:18px 0 32px; overflow:hidden; padding:12px; }
+    .map svg { display:block; width:100%; height:auto; }
+    .timeline { list-style:none; margin:0; padding:0 0 0 24px; border-left:2px solid var(--line); }
+    .stop { position:relative; background:var(--card); border:1px solid #dedbd1; border-radius:18px; margin:0 0 18px 14px; padding:18px; box-shadow:0 8px 28px #28352c0b; }
+    .stop:before { content:""; position:absolute; width:14px; height:14px; left:-47px; top:24px; border:5px solid var(--paper); border-radius:50%; background:var(--accent); }
+    h2 { margin:3px 0 8px; font:700 1.35rem Georgia,serif; }
+    p { margin:8px 0; white-space:pre-wrap; }
+    a { color:#a43c28; text-underline-offset:3px; }
+    .photos { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:14px; }
+    .photos img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; }
+    footer { color:var(--muted); padding:22px 6px; font-size:.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="dates">{{formatDate .StartedAt}}{{if .EndedAt}} — {{formatDate .EndedAt}}{{end}}</div>
+    <h1>{{.Title}}</h1>
+    <div class="dates">Shared from Pinerary · {{len .Items}} stops</div>
+  </header>
+  {{if .Items}}
+  <section class="map" aria-label="Itinerary overview">
+    <svg viewBox="0 0 600 220" role="img">
+      <polyline points="{{svgPoints .Items}}" fill="none" stroke="#e85d3f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </section>
+  {{end}}
+  <ol class="timeline">
+    {{range $index, $item := .Items}}
+    <li class="stop">
+      <div class="time">Stop {{printf "%02d" (inc $index)}} · {{formatTime .CapturedAt}}</div>
+      <h2>{{.DisplayName}}</h2>
+      {{if .Note}}<p>{{.Note}}</p>{{end}}
+      <a href="{{mapURL .Latitude .Longitude}}" rel="noreferrer">Open location in OpenStreetMap</a>
+      {{if .Photos}}<div class="photos">{{range .Photos}}<img src="{{.URL}}" alt="Photo from this stop" loading="lazy">{{end}}</div>{{end}}
+    </li>
+    {{end}}
+  </ol>
+  <footer>This is an unlisted itinerary. Anyone with its link can view it until the owner revokes it.</footer>
+</main>
+</body>
+</html>

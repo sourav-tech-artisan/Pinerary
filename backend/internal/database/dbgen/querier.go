@@ -17,6 +17,7 @@ type Querier interface {
 	CompleteJourney(ctx context.Context, arg CompleteJourneyParams) (Journey, error)
 	CompletePhotoUpload(ctx context.Context, arg CompletePhotoUploadParams) (Photo, error)
 	ConvertOutingToTrip(ctx context.Context, arg ConvertOutingToTripParams) (Journey, error)
+	CreateItineraryShare(ctx context.Context, arg CreateItineraryShareParams) (ItineraryShare, error)
 	CreateJourney(ctx context.Context, arg CreateJourneyParams) (Journey, error)
 	CreateJourneyStop(ctx context.Context, arg CreateJourneyStopParams) (CreateJourneyStopRow, error)
 	CreatePhotoUpload(ctx context.Context, arg CreatePhotoUploadParams) (Photo, error)
@@ -27,6 +28,7 @@ type Querier interface {
 	DeleteRouteSegments(ctx context.Context, journeyID pgtype.UUID) error
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (BackgroundJob, error)
 	ExpireJourney(ctx context.Context, arg ExpireJourneyParams) (Journey, error)
+	GetItineraryShareByTokenHash(ctx context.Context, tokenHash []byte) (ItineraryShare, error)
 	GetJourney(ctx context.Context, arg GetJourneyParams) (Journey, error)
 	GetJourneyRoute(ctx context.Context, arg GetJourneyRouteParams) ([]GetJourneyRouteRow, error)
 	GetJourneyStopByClientRequest(ctx context.Context, arg GetJourneyStopByClientRequestParams) (GetJourneyStopByClientRequestRow, error)
@@ -43,6 +45,7 @@ type Querier interface {
 	ListJourneys(ctx context.Context, arg ListJourneysParams) ([]Journey, error)
 	ListLocationSamples(ctx context.Context, arg ListLocationSamplesParams) ([]ListLocationSamplesRow, error)
 	ListLocationSamplesForProcessing(ctx context.Context, journeyID pgtype.UUID) ([]ListLocationSamplesForProcessingRow, error)
+	ListPhotosForShare(ctx context.Context, arg ListPhotosForShareParams) ([]ListPhotosForShareRow, error)
 	ListPlaces(ctx context.Context, arg ListPlacesParams) ([]ListPlacesRow, error)
 	ListRouteSegmentsForMatching(ctx context.Context, journeyID pgtype.UUID) ([]ListRouteSegmentsForMatchingRow, error)
 	ListStopPhotos(ctx context.Context, arg ListStopPhotosParams) ([]Photo, error)
@@ -55,6 +58,7 @@ type Querier interface {
 	NextJourneyStopSequence(ctx context.Context, journeyID pgtype.UUID) (int64, error)
 	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
 	RetryJob(ctx context.Context, arg RetryJobParams) error
+	RevokeItineraryShare(ctx context.Context, arg RevokeItineraryShareParams) (int64, error)
 	UpdateJourneyLabel(ctx context.Context, arg UpdateJourneyLabelParams) (Journey, error)
 	UpdateJourneyStopMetadata(ctx context.Context, arg UpdateJourneyStopMetadataParams) (UpdateJourneyStopMetadataRow, error)
 	UpdateLocationSampleQuality(ctx context.Context, arg UpdateLocationSampleQualityParams) error

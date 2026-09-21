@@ -18,6 +18,7 @@ const (
 	defaultObjectSecretKey          = "pinerary-secret"
 	defaultObjectBucket             = "pinerary-media"
 	defaultMaxPhotoBytes      int64 = 15 << 20
+	defaultPublicBaseURL            = "http://localhost:8080"
 )
 
 type Config struct {
@@ -36,6 +37,7 @@ type Config struct {
 	ObjectBucket       string
 	ObjectUseTLS       bool
 	MaxPhotoBytes      int64
+	PublicBaseURL      string
 }
 
 func Load() Config {
@@ -60,6 +62,7 @@ func Load() Config {
 		ObjectBucket:       valueOrDefault("PINERARY_OBJECT_BUCKET", defaultObjectBucket),
 		ObjectUseTLS:       strings.EqualFold(os.Getenv("PINERARY_OBJECT_USE_TLS"), "true"),
 		MaxPhotoBytes:      positiveInt64OrDefault("PINERARY_MAX_PHOTO_BYTES", defaultMaxPhotoBytes),
+		PublicBaseURL:      strings.TrimRight(valueOrDefault("PINERARY_PUBLIC_BASE_URL", defaultPublicBaseURL), "/"),
 	}
 }
 

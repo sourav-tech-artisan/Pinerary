@@ -371,6 +371,26 @@ paths:
       - $ref: "#/components/parameters/JourneyID"
     post:
       operationId: createJourneyShare
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: {type: string}
+                expires_at: {type: [string, "null"], format: date-time}
+                items:
+                  type: array
+                  description: Share-only order; omitting it uses the original timeline.
+                  items:
+                    type: object
+                    required: [stop_id]
+                    properties:
+                      stop_id: {type: string, format: uuid}
+                      display_name: {type: [string, "null"]}
+                      note: {type: [string, "null"]}
+                      photo_ids: {type: array, items: {type: string, format: uuid}}
       responses:
         "201":
           description: Immutable public itinerary snapshot created
@@ -387,6 +407,14 @@ paths:
           description: Public itinerary snapshot
         default:
           $ref: "#/components/responses/Error"
+  /share-links/{shareId}:
+    delete:
+      operationId: revokeJourneyShare
+      parameters:
+        - {name: shareId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "204": {description: Share revoked}
+        default: {$ref: "#/components/responses/Error"}
 components:
   securitySchemes:
     bearerAuth:

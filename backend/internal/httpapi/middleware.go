@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,10 +38,17 @@ func accessLog(logger *slog.Logger) gin.HandlerFunc {
 		startedAt := time.Now()
 		ctx.Next()
 
+		loggedPath := ctx.Request.URL.Path
+		if ctx.Request.Method == http.MethodGet && strings.HasPrefix(loggedPath, "/s/") {
+			loggedPath = "/s/:token"
+		}
+		if ctx.Request.Method == http.MethodGet && strings.HasPrefix(loggedPath, "/api/v1/shares/") {
+			loggedPath = "/api/v1/shares/:token"
+		}
 		logger.InfoContext(ctx.Request.Context(), "request completed",
 			"request_id", ctx.GetString(requestIDHeader),
 			"method", ctx.Request.Method,
-			"path", ctx.Request.URL.Path,
+			"path", loggedPath,
 			"status", ctx.Writer.Status(),
 			"duration_ms", time.Since(startedAt).Milliseconds(),
 		)
