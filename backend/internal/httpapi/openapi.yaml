@@ -348,6 +348,15 @@ paths:
           description: Short-lived signed upload URL
         default:
           $ref: "#/components/responses/Error"
+  /journeys/{journeyId}/stops/{stopId}/photos:
+    get:
+      operationId: listStopPhotos
+      parameters:
+        - $ref: "#/components/parameters/JourneyID"
+        - {name: stopId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200": {description: Processed photos with short-lived private thumbnail URLs}
+        default: {$ref: "#/components/responses/Error"}
   /photos/{photoId}/complete:
     parameters:
       - {name: photoId, in: path, required: true, schema: {type: string, format: uuid}}

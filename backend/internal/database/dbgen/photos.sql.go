@@ -172,17 +172,18 @@ func (q *Queries) GetPhotoForOwner(ctx context.Context, arg GetPhotoForOwnerPara
 
 const listStopPhotos = `-- name: ListStopPhotos :many
 SELECT id, owner_id, journey_id, stop_id, object_key, thumbnail_key, content_type, byte_size, status, captured_at, created_at, updated_at, client_request_id, checksum_sha256 FROM photos
-WHERE owner_id = $1 AND stop_id = $2 AND status = 'processed'
+WHERE owner_id = $1 AND journey_id = $2 AND stop_id = $3 AND status = 'processed'
 ORDER BY captured_at NULLS LAST, created_at
 `
 
 type ListStopPhotosParams struct {
-	OwnerID pgtype.UUID `json:"owner_id"`
-	StopID  pgtype.UUID `json:"stop_id"`
+	OwnerID   pgtype.UUID `json:"owner_id"`
+	JourneyID pgtype.UUID `json:"journey_id"`
+	StopID    pgtype.UUID `json:"stop_id"`
 }
 
 func (q *Queries) ListStopPhotos(ctx context.Context, arg ListStopPhotosParams) ([]Photo, error) {
-	rows, err := q.db.Query(ctx, listStopPhotos, arg.OwnerID, arg.StopID)
+	rows, err := q.db.Query(ctx, listStopPhotos, arg.OwnerID, arg.JourneyID, arg.StopID)
 	if err != nil {
 		return nil, err
 	}

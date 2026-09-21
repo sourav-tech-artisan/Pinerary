@@ -39,5 +39,5 @@ UPDATE photos SET status = 'failed', updated_at = now() WHERE id = $1;
 
 -- name: ListStopPhotos :many
 SELECT * FROM photos
-WHERE owner_id = $1 AND stop_id = $2 AND status = 'processed'
+WHERE owner_id = $1 AND journey_id = $2 AND stop_id = $3 AND status = 'processed'
 ORDER BY captured_at NULLS LAST, created_at;

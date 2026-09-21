@@ -17,7 +17,10 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 )
 
-const uploadExpiry = 15 * time.Minute
+const (
+	uploadExpiry           = 15 * time.Minute
+	privatePhotoReadExpiry = 15 * time.Minute
+)
 
 var (
 	ErrInvalidPhoto  = errors.New("photo metadata is invalid")
@@ -54,6 +57,12 @@ type UploadIntent struct {
 type CompleteResult struct {
 	PhotoID uuid.UUID `json:"photo_id"`
 	Status  string    `json:"status"`
+}
+
+type PhotoView struct {
+	PhotoID    uuid.UUID  `json:"photo_id"`
+	URL        string     `json:"url"`
+	CapturedAt *time.Time `json:"captured_at"`
 }
 
 func NewService(pool *pgxpool.Pool, store objectstore.Store, maxPhotoSize int64) *Service {
@@ -149,6 +158,32 @@ func (s *Service) Complete(ctx context.Context, ownerID, photoID uuid.UUID, chec
 		return CompleteResult{}, err
 	}
 	return CompleteResult{PhotoID: photoID, Status: "uploaded"}, nil
+}
+
+func (s *Service) ListStopPhotos(ctx context.Context, ownerID, journeyID, stopID uuid.UUID) ([]PhotoView, error) {
+	photos, err := dbgen.New(s.pool).ListStopPhotos(ctx, dbgen.ListStopPhotosParams{
+		OwnerID: pgUUID(ownerID), JourneyID: pgUUID(journeyID), StopID: pgUUID(stopID),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list stop photos: %w", err)
+	}
+	result := make([]PhotoView, 0, len(photos))
+	for _, photo := range photos {
+		if !photo.ThumbnailKey.Valid {
+			continue
+		}
+		photoURL, err := s.store.PresignGet(ctx, photo.ThumbnailKey.String, privatePhotoReadExpiry)
+		if err != nil {
+			return nil, err
+		}
+		view := PhotoView{PhotoID: uuid.UUID(photo.ID.Bytes), URL: photoURL.String()}
+		if photo.CapturedAt.Valid {
+			capturedAt := photo.CapturedAt.Time
+			view.CapturedAt = &capturedAt
+		}
+		result = append(result, view)
+	}
+	return result, nil
 }
 
 func allowedContentType(contentType string) bool {

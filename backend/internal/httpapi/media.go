@@ -14,7 +14,26 @@ import (
 
 type mediaService interface {
 	Complete(context.Context, uuid.UUID, uuid.UUID, string) (media.CompleteResult, error)
+	ListStopPhotos(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) ([]media.PhotoView, error)
 	Reserve(context.Context, media.ReserveInput) (media.UploadIntent, error)
+}
+
+func (h mediaHandler) listStopPhotos(ctx *gin.Context) {
+	journeyID, ok := pathUUID(ctx, "journeyId")
+	if !ok {
+		return
+	}
+	stopID, ok := pathUUID(ctx, "stopId")
+	if !ok {
+		return
+	}
+	principal, _ := identity.PrincipalFromContext(ctx.Request.Context())
+	photos, err := h.service.ListStopPhotos(ctx.Request.Context(), principal.UserID, journeyID, stopID)
+	if err != nil {
+		writeMediaError(ctx, err)
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"items": photos})
 }
 
 type mediaHandler struct {

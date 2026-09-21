@@ -93,6 +93,7 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	media := mediaHandler{service: config.MediaService}
 	api.POST("/photos/upload-intents", media.reserve)
 	api.POST("/photos/:photoId/complete", media.complete)
+	api.GET("/journeys/:journeyId/stops/:stopId/photos", media.listStopPhotos)
 
 	nearby := nearbyHandler{service: config.NearbyService}
 	api.GET("/places/nearby", nearby.find)
