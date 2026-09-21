@@ -12,9 +12,9 @@ PostgreSQL/PostGIS is the source of truth, MinIO provides local S3-compatible st
 
 - Go 1.24+
 - Docker with a running Compose-compatible daemon
-- A Valhalla endpoint for nearby road results and map matching
+- Docker storage for the local Valhalla graph
 
-The Compose file starts PostgreSQL/PostGIS and MinIO. Valhalla is deliberately external because its image and regional routing graph depend on the deployment region.
+The Compose file starts PostgreSQL/PostGIS, MinIO, and Valhalla. The initial Valhalla graph uses BBBike's compact New Delhi extract and is persisted in the `valhalla-data` Docker volume. The first start downloads the image/data and builds the graph, so it takes longer than subsequent starts.
 
 The official PostGIS image is pinned to `linux/amd64`; Docker Desktop uses emulation on Apple Silicon. The first pull/start can therefore take longer, but subsequent starts reuse the image and volumes.
 
@@ -65,7 +65,7 @@ Never enable `PINERARY_AUTH_MODE=development` in a public environment. Productio
 - Valhalla default: `http://localhost:8002`
 - Nominatim default: `https://nominatim.openstreetmap.org`
 
-Self-hosted Valhalla does not require an account or API key. It requires an OpenStreetMap PBF extract and a locally built graph for the chosen region. Public Nominatim also has no API key, but its usage policy requires an identifying application/contact and permits only light user-triggered traffic.
+Self-hosted Valhalla does not require an account or API key. It builds its graph from the configured OpenStreetMap PBF extract. To add another disconnected region such as Goa, add its PBF URL to `tile_urls` and recreate Valhalla; file hashes trigger a graph rebuild while the backend endpoint remains unchanged. Public Nominatim also has no API key, but its usage policy requires an identifying application/contact and permits only light user-triggered traffic.
 
 If Valhalla is unavailable, normal capture still works; nearby road ranking returns `503`, and queued map-matching jobs retry before entering the dead-letter state. Straight-line distance is only used to shortlist candidates, never as the successful default nearby result. The worker also removes photo uploads that remain pending for more than 24 hours.
 

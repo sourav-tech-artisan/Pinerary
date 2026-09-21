@@ -10,7 +10,7 @@ db-down:
 	docker compose -f ../infra/compose.yaml down
 
 db-up:
-	docker compose -f ../infra/compose.yaml up -d --wait postgres minio
+	docker compose -f ../infra/compose.yaml up -d --wait --wait-timeout 900 postgres minio valhalla
 
 fmt:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')

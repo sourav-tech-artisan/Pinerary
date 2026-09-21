@@ -35,6 +35,28 @@ services:
       timeout: 5s
       retries: 10
 
+  valhalla:
+    image: ghcr.io/valhalla/valhalla-scripted:3.9.0
+    environment:
+      tile_urls: https://download.bbbike.org/osm/bbbike/NewDelhi/NewDelhi.osm.pbf
+      build_admins: "True"
+      build_time_zones: "True"
+      build_elevation: "False"
+      build_tar: "True"
+      server_threads: "2"
+      use_tiles_ignore_pbf: "False"
+    ports:
+      - "8002:8002"
+    volumes:
+      - valhalla-data:/custom_files
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8002/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10m
+
 volumes:
   postgres-data:
   minio-data:
+  valhalla-data:

@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document type | As-built design and code-reading guide |
-| Backend status | Core runtime verified locally; Valhalla provisioning pending |
+| Backend status | Core runtime verified locally, including Delhi Valhalla routing |
 | Last reviewed | 2026-09-22 |
 | Language/framework | Go 1.24, Gin, `net/http` |
 | Persistence | PostgreSQL 17 + PostGIS, `pgx`, `sqlc`, Goose |
@@ -14,16 +14,16 @@
 
 The repository contains a coherent backend baseline, not a mock server. It implements authentication, independent-user isolation, journey lifecycle, saved places, immutable timeline stops, GPS ingestion and cleanup, Valhalla map matching, private photo processing, road-ranked nearby search, public itinerary snapshots, outing expiry, rate limiting, telemetry, migrations, and a durable PostgreSQL worker.
 
-It compiles and its unit, race, contract, and integration suites pass. A live local run has also verified migrations, API/worker startup, PostGIS persistence, direct MinIO upload, thumbnail processing, GPS cleanup, journey completion, and public sharing. Valhalla provisioning is the remaining external runtime gap:
+It compiles and its unit, race, contract, and integration suites pass. A live local run has also verified migrations, API/worker startup, PostGIS persistence, direct MinIO upload, thumbnail processing, GPS cleanup and Valhalla map matching, motorcycle road ranking, journey completion, and public sharing.
 
 | Question | Answer |
 | --- | --- |
 | Is the code buildable? | Yes. API, worker, and migration binaries build. |
-| Can Postman call it today? | Yes. PostgreSQL/PostGIS and MinIO are installed locally, and the supplied collection targets the development API. |
-| Can every feature be exercised immediately? | No. Nearby road ranking and map matching also need a live Valhalla instance. Reverse geocoding needs Nominatim connectivity. |
+| Can Postman call it today? | Yes. PostgreSQL/PostGIS, MinIO, and Delhi Valhalla are installed locally, and the supplied collection targets the development API. |
+| Can every feature be exercised immediately? | Delhi road ranking and map matching work. Reverse geocoding needs Nominatim connectivity, and coordinates outside the loaded routing graph need another extract. |
 | Is development authentication available? | Yes. Any non-empty bearer token becomes a stable local user. |
-| Has a real full-stack smoke test passed locally? | Yes for the core flow; Valhalla-dependent road ranking and map matching still need their regional graph. |
-| Should the frontend start now? | Prefer completing the remaining readiness items in section 23, especially Valhalla and the full OpenAPI contract. |
+| Has a real full-stack smoke test passed locally? | Yes, including motorcycle matrices and asynchronous GPS map matching against Valhalla 3.9.0. |
+| Should the frontend start now? | Prefer completing the remaining readiness items in section 23, especially the full OpenAPI contract and automated API workflow. |
 
 ## 2. System context
 
@@ -88,12 +88,13 @@ flowchart TB
 
 The Dockerfile produces one distroless image containing all three binaries. `/pinerary-api` is the default entrypoint; deployment definitions override the entrypoint for worker and migration roles. Migrations run before API/worker rollout.
 
-Local Compose intentionally starts only:
+Local Compose starts:
 
 - PostgreSQL/PostGIS on port `5432`
 - MinIO S3 API on `9000` and console on `9001`
+- Valhalla 3.9.0 on `8002`, with its routing graph persisted in a Docker volume
 
-Valhalla is external because its image, graph build, memory, and disk requirements depend on the selected geographic extract.
+The initial graph uses BBBike's New Delhi extract: longitude `76.98–77.50`, latitude `28.44–28.74`. This is intentionally compact development coverage for central Delhi and nearby Gurugram/Noida/Ghaziabad areas, not the full statutory NCR. Goa is the next planned region; its Western Zone PBF can be added to the same graph without changing the backend URL. A country-scale graph can replace these extracts later.
 
 ## 4. Repository map
 
@@ -772,7 +773,7 @@ Current local verification:
 - API/worker/migration binary build: passing
 - Compose configuration validation: passing
 - 10,000-point cleaner benchmark: approximately 0.99 ms/op on Apple M2
-- Live PostGIS/MinIO end-to-end run: passing on 2026-09-22, including API, worker, photo processing, GPS cleanup, and sharing
+- Live PostGIS/MinIO/Valhalla end-to-end run: passing on 2026-09-22, including API, worker, photo processing, GPS cleanup and map matching, motorcycle road ranking, and sharing
 - Local `golangci-lint`: not installed; configured in CI
 
 The PostGIS integration suite proves owner isolation, spatial candidate filtering, and idempotent journey creation. A manual full API workflow has passed; converting it into a repeatable automated test remains work.
@@ -856,16 +857,14 @@ The core implementation is substantial, but these items should be closed before 
 
 | Priority | Item | Why it matters |
 | --- | --- | --- |
-| P0 | Provision/configure a Valhalla graph for the initial region | Nearby road distance and map matching are core MVP features and currently have no running dependency |
 | P0 | Complete OpenAPI request/response schemas and add handler/contract conformance checks | The current file lists every route but several responses are descriptions only, which is insufficient for reliable frontend type generation |
 | P0 | Add one database-backed API workflow test | The current integration tests cover important queries but not create journey → stop → GPS → end → share as an HTTP flow |
-| P1 | Handle Valhalla unreachable matrix cells explicitly | JSON `null`/unreachable destinations must never become a misleading zero-distance result |
 | P1 | Recompute and verify photo SHA-256 server-side or remove the checksum claim | The value is currently stored but not independently verified |
 | P1 | Decide production OIDC provider and account-recovery flow | Development auth is intentionally unsafe outside local development |
 | P1 | Configure production S3 CORS, TLS ingress, secrets, backups, and monitoring | Deployment work rather than missing domain code |
 | Pre-public | Account export/deletion, audit events, retention policy, broader load/security tests | Privacy and operational readiness for users beyond the initial development group |
 
-The three remaining P0 items are the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
+The two remaining P0 items are the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
 
 ## 24. Design trade-offs and interview discussion
 

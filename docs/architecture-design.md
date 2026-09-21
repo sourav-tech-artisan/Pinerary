@@ -118,7 +118,7 @@ The API and worker use the same Go modules and are built from one repository. Th
 | Map renderer | MapLibre GL JS in the shared UI | Decided | Open source, compatible with the PWA and Capacitor WebView, and independent of a commercial map vendor |
 | Map data | OpenStreetMap-derived data | Decided | Open data and compatible self-hosting path |
 | Reverse geocoding | Nominatim behind a backend adapter | Implemented | Open source; can begin with compliant public usage and later self-host |
-| Routing | Self-hosted Valhalla | Implemented adapter; deployment pending | Open source, matrices, motorcycle costing, and map matching |
+| Routing | Self-hosted Valhalla | Implemented; Delhi development graph running locally | Open source, matrices, motorcycle costing, and map matching |
 | Default nearby mode | Motorcycle road distance | Decided | Matches the user's primary transport mode while keeping other modes selectable |
 | Jobs | PostgreSQL-backed queue; outbox primitive reserved | Implemented | Reliable asynchronous work without Kafka/Redis in the MVP |
 | Sharing | Revocable public itinerary page plus native text/link sharing | Decided | Creates a useful, attractive share while retaining owner control |
@@ -779,8 +779,9 @@ Use containers for:
 
 - PostgreSQL/PostGIS
 - MinIO
+- Valhalla with the current regional graph
 
-Run Valhalla separately with a small regional extract. An optional local geocoder can replace the public adapter endpoint.
+The first graph uses a compact New Delhi extract. Goa/Western Zone is the next planned addition; Valhalla accepts multiple PBF extracts, so the backend endpoint and adapter do not change. An optional local geocoder can replace the public adapter endpoint.
 
 Next.js and Go may run directly for fast reload or through containers for parity.
 
