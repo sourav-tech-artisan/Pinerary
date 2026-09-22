@@ -23,7 +23,7 @@ It compiles and its unit, race, contract, and integration suites pass. A live lo
 | Can every feature be exercised immediately? | Delhi road ranking and map matching work. Reverse geocoding needs Nominatim connectivity, and coordinates outside the loaded routing graph need another extract. |
 | Is development authentication available? | Yes. Any non-empty bearer token becomes a stable local user. |
 | Has a real full-stack smoke test passed locally? | Yes, including motorcycle matrices and asynchronous GPS map matching against Valhalla 3.9.0. |
-| Should the frontend start now? | Prefer completing the remaining readiness items in section 23, especially the full OpenAPI contract and automated API workflow. |
+| Should the frontend start now? | Prefer adding the remaining automated database-backed API workflow first; the OpenAPI contract is now fully typed. |
 
 ## 2. System context
 
@@ -772,6 +772,7 @@ Current local verification:
 - `go vet ./...`: passing
 - API/worker/migration binary build: passing
 - Compose configuration validation: passing
+- OpenAPI validation, typed success-body checks, and Gin route/method parity: passing
 - 10,000-point cleaner benchmark: approximately 0.99 ms/op on Apple M2
 - Live PostGIS/MinIO/Valhalla end-to-end run: passing on 2026-09-22, including API, worker, photo processing, GPS cleanup and map matching, motorcycle road ranking, and sharing
 - Local `golangci-lint`: not installed; configured in CI
@@ -857,14 +858,13 @@ The core implementation is substantial, but these items should be closed before 
 
 | Priority | Item | Why it matters |
 | --- | --- | --- |
-| P0 | Complete OpenAPI request/response schemas and add handler/contract conformance checks | The current file lists every route but several responses are descriptions only, which is insufficient for reliable frontend type generation |
 | P0 | Add one database-backed API workflow test | The current integration tests cover important queries but not create journey → stop → GPS → end → share as an HTTP flow |
 | P1 | Recompute and verify photo SHA-256 server-side or remove the checksum claim | The value is currently stored but not independently verified |
 | P1 | Decide production OIDC provider and account-recovery flow | Development auth is intentionally unsafe outside local development |
 | P1 | Configure production S3 CORS, TLS ingress, secrets, backups, and monitoring | Deployment work rather than missing domain code |
 | Pre-public | Account export/deletion, audit events, retention policy, broader load/security tests | Privacy and operational readiness for users beyond the initial development group |
 
-The two remaining P0 items are the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
+The remaining P0 item is the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
 
 ## 24. Design trade-offs and interview discussion
 

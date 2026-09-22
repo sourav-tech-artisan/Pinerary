@@ -27,11 +27,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [display_name, default_transport_mode]
-              properties:
-                display_name: {type: string, maxLength: 160}
-                default_transport_mode: {$ref: "#/components/schemas/TransportMode"}
+              $ref: "#/components/schemas/UpdateProfileRequest"
       responses:
         "200":
           description: Updated current user
@@ -43,7 +39,12 @@ paths:
     get:
       operationId: listDevices
       responses:
-        "200": {description: Registered devices}
+        "200":
+          description: Registered devices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceList"
         default: {$ref: "#/components/responses/Error"}
     post:
       operationId: registerDevice
@@ -56,6 +57,10 @@ paths:
       responses:
         "201":
           description: Device registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
         default:
           $ref: "#/components/responses/Error"
   /devices/{deviceId}:
@@ -78,13 +83,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [items]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Journey"
+                $ref: "#/components/schemas/JourneyList"
         default:
           $ref: "#/components/responses/Error"
     post:
@@ -125,14 +124,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [label, version]
-              properties:
-                label: {type: string, minLength: 1, maxLength: 160}
-                version: {type: integer, minimum: 1}
+              $ref: "#/components/schemas/UpdateJourneyRequest"
       responses:
         "200":
           description: Journey updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journey"
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/end:
@@ -148,6 +147,10 @@ paths:
       responses:
         "200":
           description: Journey ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journey"
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/convert-to-trip:
@@ -161,7 +164,12 @@ paths:
           application/json:
             schema: {$ref: "#/components/schemas/VersionRequest"}
       responses:
-        "200": {description: Outing converted to trip}
+        "200":
+          description: Outing converted to trip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Journey"
         default: {$ref: "#/components/responses/Error"}
   /journeys/{journeyId}/locations/batch:
     parameters:
@@ -187,13 +195,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [received, inserted, duplicates, flagged]
-                properties:
-                  received: {type: integer}
-                  inserted: {type: integer}
-                  duplicates: {type: integer}
-                  flagged: {type: integer}
+                $ref: "#/components/schemas/LocationIngestResult"
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/route:
@@ -202,7 +204,12 @@ paths:
     get:
       operationId: getJourneyRoute
       responses:
-        "200": {description: "Cleaned route segments, map-matched when available"}
+        "200":
+          description: Cleaned route segments, map-matched when available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteSegmentList"
         default: {$ref: "#/components/responses/Error"}
   /journeys/{journeyId}/stops:
     parameters:
@@ -217,12 +224,21 @@ paths:
       responses:
         "201":
           description: Stop added to the immutable timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JourneyStop"
         default:
           $ref: "#/components/responses/Error"
     get:
       operationId: listJourneyStops
       responses:
-        "200": {description: Original chronological stop timeline}
+        "200":
+          description: Original chronological stop timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JourneyStopList"
         default: {$ref: "#/components/responses/Error"}
   /journeys/{journeyId}/stops/{stopId}:
     patch:
@@ -235,13 +251,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [name, note]
-              properties:
-                name: {type: string, minLength: 1, maxLength: 200}
-                note: {type: string}
+              $ref: "#/components/schemas/UpdateStopRequest"
       responses:
-        "200": {description: Editable stop metadata updated}
+        "200":
+          description: Editable stop metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JourneyStop"
         default: {$ref: "#/components/responses/Error"}
   /places:
     get:
@@ -249,7 +266,12 @@ paths:
       parameters:
         - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
       responses:
-        "200": {description: Saved place library}
+        "200":
+          description: Saved place library
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceList"
         default: {$ref: "#/components/responses/Error"}
     post:
       operationId: savePlace
@@ -261,6 +283,10 @@ paths:
       responses:
         "201":
           description: Place saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
         default:
           $ref: "#/components/responses/Error"
   /places/{placeId}:
@@ -268,8 +294,19 @@ paths:
       - {name: placeId, in: path, required: true, schema: {type: string, format: uuid}}
     patch:
       operationId: updatePlace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlaceRequest"
       responses:
-        "200": {description: Place metadata updated}
+        "200":
+          description: Place metadata updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
         default: {$ref: "#/components/responses/Error"}
     delete:
       operationId: deletePlace
@@ -290,30 +327,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [sort_mode, items]
-                properties:
-                  sort_mode: {$ref: "#/components/schemas/TransportMode"}
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      required: [place_id, name, latitude, longitude, routes]
-                      properties:
-                        place_id: {type: string, format: uuid}
-                        name: {type: string}
-                        latitude: {type: number, format: double}
-                        longitude: {type: number, format: double}
-                        straight_line_m:
-                          type: number
-                          description: Internal prefilter diagnostic; not the default displayed distance.
-                        routes:
-                          type: object
-                          additionalProperties:
-                            type: object
-                            properties:
-                              distance_m: {type: number}
-                              duration_s: {type: integer}
+                $ref: "#/components/schemas/NearbyResult"
         default:
           $ref: "#/components/responses/Error"
   /places/reverse-geocode:
@@ -325,6 +339,10 @@ paths:
       responses:
         "200":
           description: Suggested place label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReverseGeocodeResult"
         default:
           $ref: "#/components/responses/Error"
   /photos/upload-intents:
@@ -335,17 +353,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [journey_id, client_request_id, content_type]
-              properties:
-                journey_id: {type: string, format: uuid}
-                stop_id: {type: string, format: uuid, nullable: true}
-                client_request_id: {type: string, format: uuid}
-                content_type: {type: string, enum: [image/jpeg, image/png, image/webp]}
-                captured_at: {type: string, format: date-time, nullable: true}
+              $ref: "#/components/schemas/CreatePhotoUploadIntentRequest"
       responses:
         "201":
           description: Short-lived signed upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoUploadIntent"
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/stops/{stopId}/photos:
@@ -355,7 +370,12 @@ paths:
         - $ref: "#/components/parameters/JourneyID"
         - {name: stopId, in: path, required: true, schema: {type: string, format: uuid}}
       responses:
-        "200": {description: Processed photos with short-lived private thumbnail URLs}
+        "200":
+          description: Processed photos with short-lived private thumbnail URLs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoList"
         default: {$ref: "#/components/responses/Error"}
   /photos/{photoId}/complete:
     parameters:
@@ -367,12 +387,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                checksum_sha256: {type: string}
+              $ref: "#/components/schemas/CompletePhotoUploadRequest"
       responses:
         "202":
           description: Upload recorded and processing queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotoProcessingStatus"
         default:
           $ref: "#/components/responses/Error"
   /journeys/{journeyId}/shares:
@@ -385,24 +407,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title: {type: string}
-                expires_at: {type: string, format: date-time, nullable: true}
-                items:
-                  type: array
-                  description: Share-only order; omitting it uses the original timeline.
-                  items:
-                    type: object
-                    required: [stop_id]
-                    properties:
-                      stop_id: {type: string, format: uuid}
-                      display_name: {type: string, nullable: true}
-                      note: {type: string, nullable: true}
-                      photo_ids: {type: array, items: {type: string, format: uuid}}
+              $ref: "#/components/schemas/CreateShareRequest"
       responses:
         "201":
           description: Immutable public itinerary snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedShare"
         default:
           $ref: "#/components/responses/Error"
   /shares/{token}:
@@ -414,6 +426,10 @@ paths:
       responses:
         "200":
           description: Public itinerary snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicItinerary"
         default:
           $ref: "#/components/responses/Error"
   /share-links/{shareId}:
@@ -448,70 +464,115 @@ components:
   schemas:
     ErrorEnvelope:
       type: object
+      additionalProperties: false
       required: [error]
       properties:
         error:
           type: object
+          additionalProperties: false
           required: [code, message, request_id]
           properties:
             code: {type: string}
             message: {type: string}
             request_id: {type: string}
-    User:
-      type: object
-      required: [id, subject, default_transport_mode]
-      properties:
-        id: {type: string, format: uuid}
-        subject: {type: string}
-        display_name: {type: string}
-        default_transport_mode:
-          $ref: "#/components/schemas/TransportMode"
-    RegisterDeviceRequest:
-      type: object
-      required: [installation_id, platform]
-      properties:
-        installation_id: {type: string, maxLength: 255}
-        platform: {type: string, enum: [web, android]}
-        push_subscription: {type: object, additionalProperties: true}
-    CreateJourneyRequest:
-      type: object
-      required: [kind, label, client_request_id]
-      properties:
-        kind: {type: string, enum: [trip, outing]}
-        label: {type: string, minLength: 1, maxLength: 160}
-        client_request_id: {type: string, format: uuid}
-    Journey:
-      type: object
-      required: [id, kind, label, status, started_at]
-      properties:
-        id: {type: string, format: uuid}
-        kind: {type: string, enum: [trip, outing]}
-        label: {type: string}
-        status: {type: string, enum: [active, ended, expired]}
-        started_at: {type: string, format: date-time}
-        ended_at: {type: string, format: date-time, nullable: true}
-    LocationPoint:
-      type: object
-      required: [sample_id, captured_at, latitude, longitude]
-      properties:
-        sample_id: {type: string, format: uuid}
-        captured_at: {type: string, format: date-time}
-        latitude: {type: number, format: double, minimum: -90, maximum: 90}
-        longitude: {type: number, format: double, minimum: -180, maximum: 180}
-        accuracy_m: {type: number, format: double, minimum: 0}
-        speed_mps: {type: number, format: double, minimum: 0}
-        heading_deg: {type: number, format: double, minimum: 0, maximum: 360}
     TransportMode:
       type: string
       enum: [motorcycle, car, walking]
       default: motorcycle
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, subject, display_name, default_transport_mode, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        subject: {type: string}
+        display_name: {type: string, maxLength: 160}
+        default_transport_mode:
+          $ref: "#/components/schemas/TransportMode"
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      required: [display_name, default_transport_mode]
+      properties:
+        display_name: {type: string, maxLength: 160}
+        default_transport_mode: {$ref: "#/components/schemas/TransportMode"}
+    RegisterDeviceRequest:
+      type: object
+      additionalProperties: false
+      required: [installation_id, platform]
+      properties:
+        installation_id: {type: string, minLength: 1, maxLength: 255}
+        platform: {type: string, enum: [web, android]}
+        push_subscription: {type: object, additionalProperties: true}
+    Device:
+      type: object
+      additionalProperties: false
+      required: [id, installation_id, platform, last_seen_at]
+      properties:
+        id: {type: string, format: uuid}
+        installation_id: {type: string}
+        platform: {type: string, enum: [web, android]}
+        last_seen_at: {type: string, format: date-time}
+    DeviceList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Device"}
+    JourneyKind:
+      type: string
+      enum: [trip, outing]
+    JourneyStatus:
+      type: string
+      enum: [active, ended, expired]
+    CreateJourneyRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, label, client_request_id]
+      properties:
+        kind: {$ref: "#/components/schemas/JourneyKind"}
+        label: {type: string, minLength: 1, maxLength: 160}
+        client_request_id: {type: string, format: uuid}
+    UpdateJourneyRequest:
+      type: object
+      additionalProperties: false
+      required: [label, version]
+      properties:
+        label: {type: string, minLength: 1, maxLength: 160}
+        version: {type: integer, format: int32, minimum: 1}
     VersionRequest:
       type: object
+      additionalProperties: false
       required: [version]
       properties:
-        version: {type: integer, minimum: 1}
+        version: {type: integer, format: int32, minimum: 1}
+    Journey:
+      type: object
+      additionalProperties: false
+      required: [id, kind, label, status, started_at, ended_at, version]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {$ref: "#/components/schemas/JourneyKind"}
+        label: {type: string}
+        status: {$ref: "#/components/schemas/JourneyStatus"}
+        started_at: {type: string, format: date-time}
+        ended_at: {type: string, format: date-time, nullable: true}
+        version: {type: integer, format: int32, minimum: 1}
+    JourneyList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Journey"}
     SavePlaceRequest:
       type: object
+      additionalProperties: false
       required: [client_request_id, name, latitude, longitude]
       properties:
         client_request_id: {type: string, format: uuid}
@@ -519,11 +580,289 @@ components:
         notes: {type: string}
         latitude: {type: number, format: double, minimum: -90, maximum: 90}
         longitude: {type: number, format: double, minimum: -180, maximum: 180}
+    UpdatePlaceRequest:
+      type: object
+      additionalProperties: false
+      required: [name, notes]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        notes: {type: string}
+    Place:
+      type: object
+      additionalProperties: false
+      required: [id, client_request_id, name, notes, latitude, longitude, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        client_request_id: {type: string, format: uuid}
+        name: {type: string}
+        notes: {type: string}
+        latitude: {type: number, format: double}
+        longitude: {type: number, format: double}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    PlaceList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Place"}
     PinStopRequest:
-      allOf:
-        - $ref: "#/components/schemas/SavePlaceRequest"
-        - type: object
-          required: [captured_at]
-          properties:
-            note: {type: string}
-            captured_at: {type: string, format: date-time}
+      type: object
+      additionalProperties: false
+      required: [client_request_id, name, latitude, longitude, captured_at]
+      properties:
+        client_request_id: {type: string, format: uuid}
+        name: {type: string, minLength: 1, maxLength: 200}
+        note: {type: string}
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+        captured_at: {type: string, format: date-time}
+    UpdateStopRequest:
+      type: object
+      additionalProperties: false
+      required: [name, note]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 200}
+        note: {type: string}
+    JourneyStop:
+      type: object
+      additionalProperties: false
+      required: [id, journey_id, place_id, client_request_id, sequence_number, captured_at, name, note, latitude, longitude]
+      properties:
+        id: {type: string, format: uuid}
+        journey_id: {type: string, format: uuid}
+        place_id: {type: string, format: uuid}
+        client_request_id: {type: string, format: uuid}
+        sequence_number: {type: integer, format: int64, minimum: 1}
+        captured_at: {type: string, format: date-time}
+        name: {type: string}
+        note: {type: string}
+        latitude: {type: number, format: double}
+        longitude: {type: number, format: double}
+    JourneyStopList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/JourneyStop"}
+    LocationPoint:
+      type: object
+      additionalProperties: false
+      required: [sample_id, captured_at, latitude, longitude]
+      properties:
+        sample_id: {type: string, format: uuid}
+        captured_at: {type: string, format: date-time}
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+        accuracy_m: {type: number, format: float, minimum: 0, nullable: true}
+        speed_mps: {type: number, format: float, minimum: 0, nullable: true}
+        heading_deg: {type: number, format: float, minimum: 0, maximum: 360, nullable: true}
+    LocationIngestResult:
+      type: object
+      additionalProperties: false
+      required: [received, inserted, duplicates, flagged]
+      properties:
+        received: {type: integer, minimum: 0}
+        inserted: {type: integer, minimum: 0}
+        duplicates: {type: integer, minimum: 0}
+        flagged: {type: integer, minimum: 0}
+    GeoJSONLineString:
+      type: object
+      additionalProperties: false
+      required: [type, coordinates]
+      properties:
+        type: {type: string, enum: [LineString]}
+        coordinates:
+          type: array
+          minItems: 2
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items: {type: number, format: double}
+    RouteSegment:
+      type: object
+      additionalProperties: false
+      required: [id, number, started_at, ended_at, geometry, distance_m, duration_s, is_map_matched]
+      properties:
+        id: {type: string, format: uuid}
+        number: {type: integer, format: int32, minimum: 1}
+        started_at: {type: string, format: date-time}
+        ended_at: {type: string, format: date-time}
+        geometry: {$ref: "#/components/schemas/GeoJSONLineString"}
+        distance_m: {type: number, format: double, minimum: 0}
+        duration_s: {type: integer, format: int32, minimum: 0}
+        is_map_matched: {type: boolean}
+    RouteSegmentList:
+      type: object
+      additionalProperties: false
+      required: [segments]
+      properties:
+        segments:
+          type: array
+          items: {$ref: "#/components/schemas/RouteSegment"}
+    RoadEstimate:
+      type: object
+      additionalProperties: false
+      required: [distance_m, duration_s]
+      properties:
+        distance_m: {type: number, format: double, minimum: 0}
+        duration_s: {type: integer, format: int32, minimum: 0}
+    NearbyRoutes:
+      type: object
+      additionalProperties: false
+      properties:
+        motorcycle: {$ref: "#/components/schemas/RoadEstimate"}
+        car: {$ref: "#/components/schemas/RoadEstimate"}
+        walking: {$ref: "#/components/schemas/RoadEstimate"}
+    NearbyPlace:
+      type: object
+      additionalProperties: false
+      required: [place_id, name, latitude, longitude, straight_line_m, routes]
+      properties:
+        place_id: {type: string, format: uuid}
+        name: {type: string}
+        latitude: {type: number, format: double}
+        longitude: {type: number, format: double}
+        straight_line_m:
+          type: number
+          format: double
+          minimum: 0
+          description: Internal prefilter diagnostic; not the default displayed distance.
+        routes: {$ref: "#/components/schemas/NearbyRoutes"}
+    NearbyResult:
+      type: object
+      additionalProperties: false
+      required: [sort_mode, items]
+      properties:
+        sort_mode: {$ref: "#/components/schemas/TransportMode"}
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/NearbyPlace"}
+    ReverseGeocodeResult:
+      type: object
+      additionalProperties: false
+      required: [display_name]
+      properties:
+        display_name: {type: string}
+    PhotoContentType:
+      type: string
+      enum: [image/jpeg, image/png, image/webp]
+    CreatePhotoUploadIntentRequest:
+      type: object
+      additionalProperties: false
+      required: [journey_id, client_request_id, content_type]
+      properties:
+        journey_id: {type: string, format: uuid}
+        stop_id: {type: string, format: uuid, nullable: true}
+        client_request_id: {type: string, format: uuid}
+        content_type: {$ref: "#/components/schemas/PhotoContentType"}
+        captured_at: {type: string, format: date-time, nullable: true}
+    PhotoUploadIntent:
+      type: object
+      additionalProperties: false
+      required: [photo_id, upload_url, method, expires_at, max_bytes, content_type]
+      properties:
+        photo_id: {type: string, format: uuid}
+        upload_url: {type: string, format: uri}
+        method: {type: string, enum: [PUT]}
+        expires_at: {type: string, format: date-time}
+        max_bytes: {type: integer, format: int64, minimum: 1}
+        content_type: {$ref: "#/components/schemas/PhotoContentType"}
+    CompletePhotoUploadRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        checksum_sha256:
+          type: string
+          pattern: "^[A-Fa-f0-9]{64}$|^$"
+    PhotoProcessingStatus:
+      type: object
+      additionalProperties: false
+      required: [photo_id, status]
+      properties:
+        photo_id: {type: string, format: uuid}
+        status: {type: string, enum: [uploaded, processed]}
+    Photo:
+      type: object
+      additionalProperties: false
+      required: [photo_id, url, captured_at]
+      properties:
+        photo_id: {type: string, format: uuid}
+        url: {type: string, format: uri}
+        captured_at: {type: string, format: date-time, nullable: true}
+    PhotoList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/Photo"}
+    ShareItemInput:
+      type: object
+      additionalProperties: false
+      required: [stop_id]
+      properties:
+        stop_id: {type: string, format: uuid}
+        display_name: {type: string, maxLength: 200, nullable: true}
+        note: {type: string, maxLength: 5000, nullable: true}
+        photo_ids:
+          type: array
+          maxItems: 20
+          items: {type: string, format: uuid}
+    CreateShareRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title: {type: string, maxLength: 160}
+        expires_at: {type: string, format: date-time, nullable: true}
+        items:
+          type: array
+          maxItems: 200
+          description: Share-only order; omitting or passing an empty array uses the original timeline.
+          items: {$ref: "#/components/schemas/ShareItemInput"}
+    CreatedShare:
+      type: object
+      additionalProperties: false
+      required: [id, url, message]
+      properties:
+        id: {type: string, format: uuid}
+        url: {type: string, format: uri}
+        message: {type: string}
+    PublicPhoto:
+      type: object
+      additionalProperties: false
+      required: [id, url]
+      properties:
+        id: {type: string, format: uuid}
+        url: {type: string, format: uri}
+    PublicItineraryItem:
+      type: object
+      additionalProperties: false
+      required: [stop_id, display_name, note, latitude, longitude, captured_at, photos]
+      properties:
+        stop_id: {type: string, format: uuid}
+        display_name: {type: string}
+        note: {type: string}
+        latitude: {type: number, format: double}
+        longitude: {type: number, format: double}
+        captured_at: {type: string, format: date-time}
+        photos:
+          type: array
+          items: {$ref: "#/components/schemas/PublicPhoto"}
+    PublicItinerary:
+      type: object
+      additionalProperties: false
+      required: [title, started_at, ended_at, items]
+      properties:
+        title: {type: string}
+        started_at: {type: string, format: date-time}
+        ended_at: {type: string, format: date-time, nullable: true}
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/PublicItineraryItem"}

@@ -228,7 +228,10 @@ func (s *Service) Resolve(ctx context.Context, token string) (PublicSnapshot, er
 	if err := json.Unmarshal(share.Snapshot, &snapshot); err != nil {
 		return PublicSnapshot{}, fmt.Errorf("decode itinerary share: %w", err)
 	}
-	public := PublicSnapshot{Title: snapshot.Title, StartedAt: snapshot.StartedAt, EndedAt: snapshot.EndedAt}
+	public := PublicSnapshot{
+		Title: snapshot.Title, StartedAt: snapshot.StartedAt, EndedAt: snapshot.EndedAt,
+		Items: make([]PublicItem, 0, len(snapshot.Items)),
+	}
 	for _, item := range snapshot.Items {
 		publicItem := PublicItem{
 			StopID: item.StopID, DisplayName: item.DisplayName, Note: item.Note,
