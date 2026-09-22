@@ -1,0 +1,26 @@
+{
+  "name": "Pinerary — Trips worth remembering",
+  "short_name": "Pinerary",
+  "description": "Capture routes, pin places, attach photos, and share beautiful itineraries.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f2e9",
+  "theme_color": "#123f35",
+  "orientation": "portrait-primary",
+  "categories": ["travel", "navigation", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/pinerary.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pinerary-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
