@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document type | As-built design and code-reading guide |
-| Backend status | Core runtime verified locally, including Delhi Valhalla routing |
+| Backend status | MVP baseline ready for PWA integration; production hardening remains |
 | Last reviewed | 2026-09-22 |
 | Language/framework | Go 1.24, Gin, `net/http` |
 | Persistence | PostgreSQL 17 + PostGIS, `pgx`, `sqlc`, Goose |
@@ -14,7 +14,7 @@
 
 The repository contains a coherent backend baseline, not a mock server. It implements authentication, independent-user isolation, journey lifecycle, saved places, immutable timeline stops, GPS ingestion and cleanup, Valhalla map matching, private photo processing, road-ranked nearby search, public itinerary snapshots, outing expiry, rate limiting, telemetry, migrations, and a durable PostgreSQL worker.
 
-It compiles and its unit, race, contract, and integration suites pass. A live local run has also verified migrations, API/worker startup, PostGIS persistence, direct MinIO upload, thumbnail processing, GPS cleanup and Valhalla map matching, motorcycle road ranking, journey completion, and public sharing.
+It compiles and its unit, race, contract, and integration suites pass. The integration suite now drives an authenticated HTTP journey workflow against real PostGIS. A live local run has also verified migrations, API/worker startup, PostGIS persistence, direct MinIO upload, thumbnail processing, GPS cleanup and Valhalla map matching, motorcycle road ranking, journey completion, and public sharing.
 
 | Question | Answer |
 | --- | --- |
@@ -23,7 +23,7 @@ It compiles and its unit, race, contract, and integration suites pass. A live lo
 | Can every feature be exercised immediately? | Delhi road ranking and map matching work. Reverse geocoding needs Nominatim connectivity, and coordinates outside the loaded routing graph need another extract. |
 | Is development authentication available? | Yes. Any non-empty bearer token becomes a stable local user. |
 | Has a real full-stack smoke test passed locally? | Yes, including motorcycle matrices and asynchronous GPS map matching against Valhalla 3.9.0. |
-| Should the frontend start now? | Prefer adding the remaining automated database-backed API workflow first; the OpenAPI contract is now fully typed. |
+| Should the frontend start now? | Yes. The typed OpenAPI contract and database-backed HTTP workflow test provide a stable MVP integration baseline. |
 
 ## 2. System context
 
@@ -757,7 +757,7 @@ OpenTelemetry instruments Gin, outbound HTTP/provider calls, and job handlers. O
 ```mermaid
 flowchart BT
     Unit[Unit tests<br/>domain rules + adapters + middleware] --> Race[Full race-enabled Go suite]
-    Integration[PostGIS integration<br/>ownership + spatial + idempotency] --> CI[GitHub Actions]
+    Integration[PostGIS integration<br/>queries + authenticated HTTP workflow] --> CI[GitHub Actions]
     Contract[OpenAPI parse/validation] --> CI
     Benchmark[10k-point cleaner benchmark] --> CI
     Lint[gofmt + vet + golangci-lint] --> CI
@@ -773,11 +773,12 @@ Current local verification:
 - API/worker/migration binary build: passing
 - Compose configuration validation: passing
 - OpenAPI validation, typed success-body checks, and Gin route/method parity: passing
+- Authenticated HTTP workflow against PostGIS: passing, covering journey creation and idempotency, stop capture, GPS ingestion, ownership isolation, completion, snapshot sharing, public JSON, and public HTML
 - 10,000-point cleaner benchmark: approximately 0.99 ms/op on Apple M2
 - Live PostGIS/MinIO/Valhalla end-to-end run: passing on 2026-09-22, including API, worker, photo processing, GPS cleanup and map matching, motorcycle road ranking, and sharing
 - Local `golangci-lint`: not installed; configured in CI
 
-The PostGIS integration suite proves owner isolation, spatial candidate filtering, and idempotent journey creation. A manual full API workflow has passed; converting it into a repeatable automated test remains work.
+The PostGIS integration suite proves owner isolation, spatial candidate filtering, query-level idempotency, and the primary authenticated HTTP workflow. The HTTP test composes the real Gin router, authentication middleware, journey/place/tracking/sharing services, and database queries. Object storage is replaced by a test double because this no-photo scenario never reads an object; separate service tests and the live smoke run cover media behavior.
 
 ## 22. Postman interaction guide
 
@@ -852,19 +853,18 @@ flowchart LR
 
 Photo PUT is the one manual Postman step: select a local JPEG/PNG/WebP file as binary body and send it to the captured `uploadUrl` with the same `Content-Type` used when reserving.
 
-## 23. Work remaining before frontend sign-off
+## 23. Backend sign-off and remaining hardening
 
-The core implementation is substantial, but these items should be closed before treating the backend contract as frozen for frontend work:
+The backend MVP integration gate is closed: the OpenAPI contract is typed and route-checked, and the primary HTTP workflow is exercised against PostGIS in CI. PWA work can begin against this contract. The following are production or pre-public hardening tasks, not blockers for frontend development:
 
 | Priority | Item | Why it matters |
 | --- | --- | --- |
-| P0 | Add one database-backed API workflow test | The current integration tests cover important queries but not create journey → stop → GPS → end → share as an HTTP flow |
 | P1 | Recompute and verify photo SHA-256 server-side or remove the checksum claim | The value is currently stored but not independently verified |
 | P1 | Decide production OIDC provider and account-recovery flow | Development auth is intentionally unsafe outside local development |
 | P1 | Configure production S3 CORS, TLS ingress, secrets, backups, and monitoring | Deployment work rather than missing domain code |
 | Pre-public | Account export/deletion, audit events, retention policy, broader load/security tests | Privacy and operational readiness for users beyond the initial development group |
 
-The remaining P0 item is the recommended backend-completion gate before frontend implementation. P1 items can be implemented in the same hardening pass where practical.
+Frontend integration may reveal additive contract refinements. Existing fields and semantics should now be treated as stable; breaking API changes require an explicit contract/versioning decision.
 
 ## 24. Design trade-offs and interview discussion
 
