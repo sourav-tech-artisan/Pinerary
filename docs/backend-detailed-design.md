@@ -29,7 +29,7 @@ It compiles and its unit, race, contract, and integration suites pass. The integ
 
 ```mermaid
 flowchart LR
-    PWA[Next.js PWA<br/>future client]
+    PWA[Next.js PWA<br/>implemented client]
     Postman[Postman<br/>manual client]
     Public[Public itinerary visitor]
     API[Go API<br/>pinerary-api]
@@ -588,7 +588,7 @@ Current constants:
 | Modes | motorcycle, car, walking |
 | Valhalla HTTP timeout | 20 seconds per call |
 
-The selected mode can be supplied per request. The user's stored default mode is managed through `PATCH /me`; the future client must send that preference when requesting nearby results.
+The selected mode can be supplied per request. The user's stored default mode is managed through `PATCH /me`; the PWA sends the active preference when requesting nearby results.
 
 ## 14. Private photo lifecycle
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Backend baseline implemented; PWA design pending |
+| Status | Backend and PWA MVP baselines implemented; device hardening pending |
 | Last updated | 2026-09-21 |
 | Intended release | MVP for a small group of independent users |
 | Primary backend | Go modular monolith |
@@ -104,7 +104,7 @@ The API and worker use the same Go modules and are built from one repository. Th
 | Area | Decision | Status | Reason |
 | --- | --- | --- | --- |
 | Architecture | Modular monolith | Decided | Clear boundaries with low operational overhead |
-| Web UI | Next.js App Router with TypeScript, statically exported | Working decision | Strong routing/PWA support without adding a Node business backend |
+| Web UI | Next.js App Router with TypeScript, statically exported | Implemented | Strong routing/PWA support without adding a Node business backend |
 | Business backend | Go | Decided | Explicit user preference and good concurrency/tooling |
 | HTTP framework | Gin | Working decision | Familiar middleware ergonomics while retaining Go performance |
 | API style | Versioned REST with OpenAPI | Decided | Fits resource workflows, offline clients, and generated contracts |
@@ -113,7 +113,7 @@ The API and worker use the same Go modules and are built from one repository. Th
 | Go database access | `pgx` and `sqlc` | Implemented | Efficient PostgreSQL access and explicit, type-safe SQL |
 | Migrations | SQL-first migrations with Goose | Implemented | Transparent migrations and a small tool surface |
 | Photos | Private S3-compatible object storage | Decided | Durable binary storage without loading the API server |
-| Browser offline store | IndexedDB, accessed through Dexie | Working decision | Durable structured client storage and queryable mutation queue |
+| Browser offline store | IndexedDB, accessed through Dexie | Implemented | Durable structured client storage and queryable mutation queue |
 | Android offline store | SQLite plus native file storage in the final phase | Working decision | Reliable background writes and large-photo handling in the APK |
 | Map renderer | MapLibre GL JS in the shared UI | Decided | Open source, compatible with the PWA and Capacitor WebView, and independent of a commercial map vendor |
 | Map data | OpenStreetMap-derived data | Decided | Open data and compatible self-hosting path |
@@ -849,8 +849,8 @@ A future planner can add planned journeys/stops and optimization without changin
 The chosen delivery order is:
 
 1. **Backend baseline — complete:** Go API/worker, OIDC boundary, PostGIS data model, journeys, places, tracking, media, nearby routing, sharing, lifecycle jobs, OpenAPI, tests, and operations documentation.
-2. **PWA design and vertical UI slices — next:** low-fidelity mobile interactions, static Next.js shell, IndexedDB outbox, journeys/pins, foreground tracking, media, nearby, sharing, and Web Push.
-3. **PWA hardening and release:** cross-browser/device tests, privacy UI, API hardening gaps, account export/deletion, and operational validation.
+2. **PWA design and vertical UI slices — complete:** static Next.js shell, IndexedDB outbox, journeys/pins, foreground tracking, media, nearby, sharing, and optional Web Push registration.
+3. **PWA hardening and release — next:** cross-browser/device tests, privacy UI, sync-conflict recovery, API hardening gaps, account export/deletion, and operational validation.
 4. **Final Android phase:** add Capacitor, Android SQLite/native file adapters, background-location collection, FCM integration, locked-screen tests, signed APK generation, and zero-cost limited distribution/sideloading.
 
 ## 26. Open decisions

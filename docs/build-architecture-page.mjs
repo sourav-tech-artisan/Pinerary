@@ -10,6 +10,7 @@ const outputPath = join(docsDir, outputName);
 const markdown = await readFile(markdownPath, "utf8");
 const embeddedMarkdown = JSON.stringify(markdown).replaceAll("<", "\\u003c");
 const isBackendGuide = sourceName === "backend-detailed-design.md";
+const isPWAGuide = sourceName === "pwa-detailed-design.md";
 const page = isBackendGuide ? {
   description: "As-built Pinerary backend design and repository guide",
   browserTitle: "Pinerary — Backend Detailed Design",
@@ -18,13 +19,21 @@ const page = isBackendGuide ? {
   copy: "A code-level guide to the Go API, PostGIS model, durable jobs, route processing, private media, road search, and public itinerary flows.",
   status: "As-built backend guide",
   footer: "Pinerary backend design artifact",
+} : isPWAGuide ? {
+  description: "As-built Pinerary PWA design and repository guide",
+  browserTitle: "Pinerary — PWA Detailed Design",
+  eyebrow: "As-built client · Repository guide",
+  heroTitle: "PWA Detailed<br />Design",
+  copy: "A code-level guide to the static Next.js client, IndexedDB outbox, foreground tracking, maps, offline photos, road search, and itinerary sharing.",
+  status: "PWA MVP implementation guide",
+  footer: "Pinerary PWA design artifact",
 } : {
   description: "Pinerary architecture and detailed technical design",
   browserTitle: "Pinerary — Architecture & Detailed Design",
   eyebrow: "System design · Architecture review",
   heroTitle: "Architecture &<br />Detailed Design",
   copy: "A backend-led, offline-first travel journal with automatic route tracking, geospatial discovery, private media, and shareable itineraries.",
-  status: "Backend implemented · PWA pending",
+  status: "Backend + PWA implemented · Hardening next",
   footer: "Pinerary architecture artifact",
 };
 
