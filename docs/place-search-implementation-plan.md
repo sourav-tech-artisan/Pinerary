@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Planned; not yet implemented |
+| Status | Implemented; live provider smoke test requires a Geoapify key |
 | Last updated | 2026-09-27 |
 | Scope | Search real-world places and save them before visiting |
 | Suggestion provider | Geoapify Address Autocomplete, accessed only through the Go API |
@@ -25,6 +25,8 @@ The existing filter must remain, but it must be visually and behaviorally distin
 A signed-in user can type a partial place name or address, inspect up to ten matching suggestions, select one, edit its name and notes, and save it to the existing offline-first place library. Exact spelling or the complete name is not required.
 
 Saving a selected result uses the existing place model and outbox. No new ownership model, canonical global place table, or journey-planning model is introduced.
+
+Implementation was completed in the planned two commits: the first adds the budgeted Go API integration, and the second adds the PWA discovery, preview, and offline-first save flow. Automated backend and PWA verification passes without contacting public providers. The manual Geoapify smoke test remains an operator step after configuring a key.
 
 ```mermaid
 flowchart LR
@@ -64,7 +66,7 @@ flowchart LR
 
 ### 3.1 Provider account setup
 
-Before implementation:
+Before enabling live suggestions:
 
 1. Create one free Geoapify account and a Pinerary project; no payment card is required for the current free plan.
 2. Create separate development and production API keys when possible so either can be rotated independently.

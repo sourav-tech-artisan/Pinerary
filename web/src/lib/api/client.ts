@@ -144,6 +144,14 @@ export async function listPlaces() {
   return requireData(data, error, response).items;
 }
 
+export async function searchPlaces(query: string, limit = 5, signal?: AbortSignal) {
+  const { data, error, response } = await (await api()).GET("/places/search", {
+    params: { query: { q: query, limit } },
+    signal,
+  });
+  return requireData(data, error, response);
+}
+
 export async function savePlace(body: SavePlaceRequest) {
   const { data, error, response } = await (await api()).POST("/places", { body });
   return requireData(data, error, response);

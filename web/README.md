@@ -34,6 +34,9 @@ npm run build
 
 - Dexie/IndexedDB is the immediate source of truth while offline.
 - A durable client outbox retries idempotent Go API mutations.
+- Advance-place autocomplete calls only the Go API. Configure the backend's Geoapify provider and key as described in `../backend/README.md`; no provider key belongs in the PWA.
+- Discovery starts after three characters and a 450 ms pause. Selecting a suggestion opens an editable map preview, then the normal IndexedDB/outbox save path.
+- Discovery needs connectivity, while saved-place filtering and already queued saves remain available offline. Typed discovery text is sent to Geoapify through the backend.
 - Foreground GPS capture follows the active journey across PWA screens.
 - A browser may pause JavaScript when the PWA is backgrounded or the phone locks. Reliable background tracking belongs to the final Capacitor Android phase.
 - OpenStreetMap tiles are used for the small development trial with attribution and a bounded runtime cache; bulk offline map downloads are not implemented.
