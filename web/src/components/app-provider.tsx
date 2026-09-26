@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { PineraryAuthProvider } from "@/components/auth-provider";
 import { pullRemoteData, synchronize, type SyncReport } from "@/lib/sync";
 
 type ConnectionState = "online" | "offline";
@@ -16,7 +17,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
+function SynchronizedAppProvider({ children }: { children: React.ReactNode }) {
   const [connection, setConnection] = useState<ConnectionState>(() =>
     typeof navigator === "undefined" || navigator.onLine ? "online" : "offline",
   );
@@ -66,6 +67,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [connection, syncState, lastSync, lastReport, syncNow],
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <PineraryAuthProvider>
+      <SynchronizedAppProvider>{children}</SynchronizedAppProvider>
+    </PineraryAuthProvider>
+  );
 }
 
 export function useApp() {

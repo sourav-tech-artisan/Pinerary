@@ -50,7 +50,9 @@ The API listens at `http://localhost:8080`. Useful endpoints are:
 - `GET /metrics`
 - `GET /openapi.yaml`
 
-Development auth treats any non-empty bearer token as a stable local identity. For example:
+The example environment now uses the configured Auth0 tenant. Log in through the PWA to obtain an API access token.
+
+For isolated Postman/backend development, change `PINERARY_AUTH_MODE` to `development`; any non-empty bearer token then becomes a stable local identity. For example:
 
 ```bash
 curl -H 'Authorization: Bearer alice' http://localhost:8080/api/v1/me

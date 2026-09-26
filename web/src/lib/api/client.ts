@@ -1,6 +1,7 @@
 import createClient from "openapi-fetch";
 import type { paths, components } from "@/lib/api/schema";
-import { getAPIBaseURL, getAuthToken } from "@/lib/config";
+import { getAccessToken } from "@/lib/auth-session";
+import { getAPIBaseURL } from "@/lib/config";
 import type { TransportMode } from "@/lib/types";
 
 type ErrorEnvelope = components["schemas"]["ErrorEnvelope"];
@@ -23,11 +24,12 @@ export class APIError extends Error {
   }
 }
 
-function api() {
+async function api() {
+  const accessToken = await getAccessToken();
   return createClient<paths>({
     baseUrl: getAPIBaseURL(),
     headers: {
-      Authorization: `Bearer ${getAuthToken()}`,
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 }
@@ -44,45 +46,45 @@ function requireData<T>(data: T | undefined, error: unknown, response: Response)
 }
 
 export async function getProfile() {
-  const { data, error, response } = await api().GET("/me");
+  const { data, error, response } = await (await api()).GET("/me");
   return requireData(data, error, response);
 }
 
 export async function updateProfile(displayName: string, defaultTransportMode: TransportMode) {
-  const { data, error, response } = await api().PATCH("/me", {
+  const { data, error, response } = await (await api()).PATCH("/me", {
     body: { display_name: displayName, default_transport_mode: defaultTransportMode },
   });
   return requireData(data, error, response);
 }
 
 export async function registerDevice(installationID: string, pushSubscription: Record<string, unknown>) {
-  const { data, error, response } = await api().POST("/devices", {
+  const { data, error, response } = await (await api()).POST("/devices", {
     body: { installation_id: installationID, platform: "web", push_subscription: pushSubscription },
   });
   return requireData(data, error, response);
 }
 
 export async function deleteDevice(deviceID: string) {
-  const { error, response } = await api().DELETE("/devices/{deviceId}", {
+  const { error, response } = await (await api()).DELETE("/devices/{deviceId}", {
     params: { path: { deviceId: deviceID } },
   });
   if (!response.ok) requireData(undefined, error, response);
 }
 
 export async function listJourneys() {
-  const { data, error, response } = await api().GET("/journeys", {
+  const { data, error, response } = await (await api()).GET("/journeys", {
     params: { query: { page_size: 100 } },
   });
   return requireData(data, error, response).items;
 }
 
 export async function createJourney(body: CreateJourneyRequest) {
-  const { data, error, response } = await api().POST("/journeys", { body });
+  const { data, error, response } = await (await api()).POST("/journeys", { body });
   return requireData(data, error, response);
 }
 
 export async function updateJourney(journeyID: string, label: string, version: number) {
-  const { data, error, response } = await api().PATCH("/journeys/{journeyId}", {
+  const { data, error, response } = await (await api()).PATCH("/journeys/{journeyId}", {
     params: { path: { journeyId: journeyID } },
     body: { label, version },
   });
@@ -90,7 +92,7 @@ export async function updateJourney(journeyID: string, label: string, version: n
 }
 
 export async function endJourney(journeyID: string, version: number) {
-  const { data, error, response } = await api().POST("/journeys/{journeyId}/end", {
+  const { data, error, response } = await (await api()).POST("/journeys/{journeyId}/end", {
     params: { path: { journeyId: journeyID } },
     body: { version },
   });
@@ -98,14 +100,14 @@ export async function endJourney(journeyID: string, version: number) {
 }
 
 export async function listStops(journeyID: string) {
-  const { data, error, response } = await api().GET("/journeys/{journeyId}/stops", {
+  const { data, error, response } = await (await api()).GET("/journeys/{journeyId}/stops", {
     params: { path: { journeyId: journeyID } },
   });
   return requireData(data, error, response).items;
 }
 
 export async function pinStop(journeyID: string, body: PinStopRequest) {
-  const { data, error, response } = await api().POST("/journeys/{journeyId}/stops", {
+  const { data, error, response } = await (await api()).POST("/journeys/{journeyId}/stops", {
     params: { path: { journeyId: journeyID } },
     body,
   });
@@ -113,7 +115,7 @@ export async function pinStop(journeyID: string, body: PinStopRequest) {
 }
 
 export async function updateStop(journeyID: string, stopID: string, name: string, note: string) {
-  const { data, error, response } = await api().PATCH("/journeys/{journeyId}/stops/{stopId}", {
+  const { data, error, response } = await (await api()).PATCH("/journeys/{journeyId}/stops/{stopId}", {
     params: { path: { journeyId: journeyID, stopId: stopID } },
     body: { name, note },
   });
@@ -121,7 +123,7 @@ export async function updateStop(journeyID: string, stopID: string, name: string
 }
 
 export async function ingestLocations(journeyID: string, points: LocationPoint[]) {
-  const { data, error, response } = await api().POST("/journeys/{journeyId}/locations/batch", {
+  const { data, error, response } = await (await api()).POST("/journeys/{journeyId}/locations/batch", {
     params: { path: { journeyId: journeyID } },
     body: { points },
   });
@@ -129,40 +131,40 @@ export async function ingestLocations(journeyID: string, points: LocationPoint[]
 }
 
 export async function getRoute(journeyID: string) {
-  const { data, error, response } = await api().GET("/journeys/{journeyId}/route", {
+  const { data, error, response } = await (await api()).GET("/journeys/{journeyId}/route", {
     params: { path: { journeyId: journeyID } },
   });
   return requireData(data, error, response).segments;
 }
 
 export async function listPlaces() {
-  const { data, error, response } = await api().GET("/places", {
+  const { data, error, response } = await (await api()).GET("/places", {
     params: { query: { limit: 500 } },
   });
   return requireData(data, error, response).items;
 }
 
 export async function savePlace(body: SavePlaceRequest) {
-  const { data, error, response } = await api().POST("/places", { body });
+  const { data, error, response } = await (await api()).POST("/places", { body });
   return requireData(data, error, response);
 }
 
 export async function reverseGeocode(latitude: number, longitude: number) {
-  const { data, error, response } = await api().GET("/places/reverse-geocode", {
+  const { data, error, response } = await (await api()).GET("/places/reverse-geocode", {
     params: { query: { latitude, longitude } },
   });
   return requireData(data, error, response);
 }
 
 export async function nearbyPlaces(latitude: number, longitude: number, mode: TransportMode) {
-  const { data, error, response } = await api().GET("/places/nearby", {
+  const { data, error, response } = await (await api()).GET("/places/nearby", {
     params: { query: { latitude, longitude, mode, limit: 10 } },
   });
   return requireData(data, error, response);
 }
 
 export async function createPhotoIntent(body: PhotoIntentRequest) {
-  const { data, error, response } = await api().POST("/photos/upload-intents", { body });
+  const { data, error, response } = await (await api()).POST("/photos/upload-intents", { body });
   return requireData(data, error, response);
 }
 
@@ -176,7 +178,7 @@ export async function uploadPhoto(uploadURL: string, blob: Blob, contentType: st
 }
 
 export async function completePhoto(photoID: string, checksum: string) {
-  const { data, error, response } = await api().POST("/photos/{photoId}/complete", {
+  const { data, error, response } = await (await api()).POST("/photos/{photoId}/complete", {
     params: { path: { photoId: photoID } },
     body: { checksum_sha256: checksum },
   });
@@ -184,14 +186,14 @@ export async function completePhoto(photoID: string, checksum: string) {
 }
 
 export async function listStopPhotos(journeyID: string, stopID: string) {
-  const { data, error, response } = await api().GET("/journeys/{journeyId}/stops/{stopId}/photos", {
+  const { data, error, response } = await (await api()).GET("/journeys/{journeyId}/stops/{stopId}/photos", {
     params: { path: { journeyId: journeyID, stopId: stopID } },
   });
   return requireData(data, error, response).items;
 }
 
 export async function createShare(journeyID: string, body: ShareRequest) {
-  const { data, error, response } = await api().POST("/journeys/{journeyId}/shares", {
+  const { data, error, response } = await (await api()).POST("/journeys/{journeyId}/shares", {
     params: { path: { journeyId: journeyID } },
     body,
   });

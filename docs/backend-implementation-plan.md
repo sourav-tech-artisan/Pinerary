@@ -189,7 +189,7 @@ Scope:
 - Add a test-only issuer/JWKS fixture.
 - Add ownership-check conventions for repositories/services.
 
-Decision gate: select the production OIDC provider before deploying this commit, but keep the backend implementation provider-neutral.
+Decision gate closed: Auth0 is selected for production; the backend implementation remains provider-neutral OIDC.
 
 #### Commit 9: `feat(identity): add devices and user preferences`
 

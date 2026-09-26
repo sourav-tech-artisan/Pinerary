@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Status | Backend and PWA MVP baselines implemented; device hardening pending |
-| Last updated | 2026-09-21 |
+| Last updated | 2026-09-26 |
 | Intended release | MVP for a small group of independent users |
 | Primary backend | Go modular monolith |
 | Primary clients | Statically exported Next.js PWA first; Capacitor Android APK in the final phase |
@@ -125,7 +125,7 @@ The API and worker use the same Go modules and are built from one repository. Th
 | Timeline policy | Immutable sequence/timestamps after completion | Decided | Preserves historical truth |
 | Share customization | Separate share snapshot/export | Decided | Allows reorder without mutating the journey |
 | GPS storage | Raw append-only points plus derived paths | Decided | Allows improved filtering and map matching later |
-| Authentication | OIDC-compatible identity; provider not selected | Open | Security, cost, recovery, and browser/Android integration need review |
+| Authentication | Auth0 EU tenant; OIDC API tokens; SPA Authorization Code + PKCE | Implemented | Free-tier managed identity, public signup, standards-based Go verification, and no Next.js auth backend |
 | Production hosting | Containerized, provider not selected | Open | Free tiers and resource needs change over time |
 
 ## 6. Client architecture
@@ -681,11 +681,11 @@ Authorization should be implemented at the service/repository boundary, not only
 
 Retention periods for raw GPS points and original photos remain an open product decision. Users should eventually be able to delete raw tracks independently of the summarized journey.
 
-## 19. Authentication decision boundary
+## 19. Authentication architecture
 
-Multiple independent users require real authentication, but the provider is not selected yet.
+Auth0 is the selected production identity provider. The PWA is registered as a Single Page Application and uses Authorization Code with PKCE through Auth0's React SDK. The Go API is registered with audience `https://api.pinerary` and validates access tokens through OIDC discovery and cached JWKS from the EU tenant.
 
-The architecture assumes:
+The architecture uses:
 
 - A stable internal user UUID
 - An external issuer/subject pair
@@ -694,16 +694,9 @@ The architecture assumes:
 - Device/session listing
 - Compatibility with browser/PWA clients and the later Android APK
 
-The preferred direction is standards-based OIDC rather than implementing password storage. The final choice must consider:
+The SDK requests `openid profile email offline_access`, persists its cache for installed-PWA continuity, and uses rotating refresh tokens. Each API request obtains a current short-lived access token. The stable Auth0 `sub` claim—not the rotating token—selects the user's IndexedDB partition. Logout clears the active local partition selector and the Auth0 session, while old offline records remain isolated for that user.
 
-- Free-tier and self-hosting limits
-- Account recovery
-- Identity-provider policies for PWAs and packaged Android apps
-- Android deep-link handling
-- Go token verification
-- Avoiding a permanent dependency on Next.js as an authentication backend
-
-The backend boundary is already provider-neutral: it performs OIDC discovery and validates signature, issuer, audience, and expiry. The production provider and account-recovery flow must be selected before deployment; development mode is local-only.
+The backend remains provider-neutral: it performs OIDC discovery and validates signature, issuer, audience, and expiry before provisioning/looking up the internal user. Auth0 account recovery and public signup are provider-managed. Development-token mode remains local-only. The later Capacitor Android phase will need a native callback/deep-link review; this does not alter the API identity boundary.
 
 ## 20. Observability
 
@@ -850,22 +843,21 @@ The chosen delivery order is:
 
 1. **Backend baseline — complete:** Go API/worker, OIDC boundary, PostGIS data model, journeys, places, tracking, media, nearby routing, sharing, lifecycle jobs, OpenAPI, tests, and operations documentation.
 2. **PWA design and vertical UI slices — complete:** static Next.js shell, IndexedDB outbox, journeys/pins, foreground tracking, media, nearby, sharing, and optional Web Push registration.
-3. **PWA hardening and release — next:** cross-browser/device tests, privacy UI, sync-conflict recovery, API hardening gaps, account export/deletion, and operational validation.
+3. **PWA hardening and release — next:** Auth0 lifecycle and cross-browser/device tests, privacy UI, sync-conflict recovery, API hardening gaps, account export/deletion, and operational validation.
 4. **Final Android phase:** add Capacitor, Android SQLite/native file adapters, background-location collection, FCM integration, locked-screen tests, signed APK generation, and zero-cost limited distribution/sideloading.
 
 ## 26. Open decisions
 
 These items are intentionally not presented as final:
 
-1. Identity provider and account-recovery design
-2. Exact GPS sampling policy after PWA and Android real-device battery/accuracy tests
-3. Production hosting provider and geographic region
-4. Initial supported routing/map dataset region
-5. Whether offline basemap downloads are MVP scope or only offline user data
-6. Raw GPS and original-photo retention policy
-7. Photo size/count limits
-8. Whether one user may deliberately record the same active journey on multiple devices
-9. The grace/recovery experience for unsynchronized data arriving after an outing auto-closes
+1. Exact GPS sampling policy after PWA and Android real-device battery/accuracy tests
+2. Production hosting provider and geographic region
+3. Initial supported routing/map dataset region
+4. Whether offline basemap downloads are MVP scope or only offline user data
+5. Raw GPS and original-photo retention policy
+6. Photo size/count limits
+7. Whether one user may deliberately record the same active journey on multiple devices
+8. The grace/recovery experience for unsynchronized data arriving after an outing auto-closes
 
 ## 27. References and external constraints
 

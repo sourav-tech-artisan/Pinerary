@@ -12,7 +12,11 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The default development bearer token is `alice`; both the token and API URL can be changed under Settings.
+Open `http://localhost:3000` and use the Auth0 login or signup screen. The checked-in example contains Pinerary's public Auth0 domain, SPA client ID, and API audience; no client secret belongs in this application.
+
+In the Auth0 SPA settings, allow `http://localhost:3000` as a callback URL, logout URL, and web origin. Enable refresh-token rotation for the SPA and **Allow Offline Access** for the API. The local Go API must run in `oidc` mode with the same issuer and audience.
+
+For isolated backend/Postman development without Auth0, set `NEXT_PUBLIC_AUTH_MODE=development` and run the Go API with `PINERARY_AUTH_MODE=development`. Only that mode displays the editable development token.
 
 ## Verification
 

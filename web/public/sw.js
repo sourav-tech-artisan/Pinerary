@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pinerary-shell-v1";
+const CACHE_VERSION = "pinerary-shell-v2";
 const TILE_CACHE = "pinerary-map-tiles-v1";
 const APP_SHELL = ["/", "/journey/", "/places/", "/nearby/", "/settings/", "/manifest.webmanifest"];
 
@@ -36,6 +36,14 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/") || request.headers.has("authorization")) return;
+
+  const isAuthCallback = url.origin === self.location.origin
+    && url.searchParams.has("state")
+    && (url.searchParams.has("code") || url.searchParams.has("error"));
+  if (isAuthCallback) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   if (url.hostname === "tile.openstreetmap.org") {
     event.respondWith(

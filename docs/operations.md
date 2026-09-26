@@ -18,8 +18,8 @@ The API and worker may be replicated independently. PostgreSQL job leasing uses 
 | --- | --- |
 | `PINERARY_DATABASE_URL` | PostgreSQL connection with PostGIS available; use TLS where supported |
 | `PINERARY_AUTH_MODE` | `oidc` |
-| `PINERARY_OIDC_ISSUER_URL` | HTTPS issuer supporting OIDC discovery |
-| `PINERARY_OIDC_AUDIENCE` | API audience/client ID expected in tokens |
+| `PINERARY_OIDC_ISSUER_URL` | `https://pinerary-prod.eu.auth0.com/` (issuer includes trailing slash) |
+| `PINERARY_OIDC_AUDIENCE` | `https://api.pinerary` |
 | `PINERARY_ALLOWED_ORIGINS` | Comma-separated exact PWA origins |
 | `PINERARY_PUBLIC_BASE_URL` | Public HTTPS origin used in share links |
 | `PINERARY_OBJECT_*` | Private S3-compatible endpoint, credentials, bucket, and TLS flag |
@@ -29,6 +29,8 @@ The API and worker may be replicated independently. PostgreSQL job leasing uses 
 | `PINERARY_OTEL_EXPORTER_OTLP_ENDPOINT` | Optional OTLP HTTP traces endpoint |
 
 Keep secrets in the hosting platform's secret manager, not an image, repository, logs, or frontend environment. Rotate database, object-store, and VAPID credentials deliberately; existing browser push subscriptions may need renewal after a VAPID rotation.
+
+The Auth0 domain, SPA client ID, and API audience are public browser configuration, not secrets. Never place an Auth0 client secret in the PWA. For each PWA deployment, add its exact HTTPS origin to the Auth0 SPA's allowed callback URLs, logout URLs, and web origins; enable refresh-token rotation on the SPA and offline access on the API.
 
 ## Deployment order
 

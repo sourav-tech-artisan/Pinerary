@@ -44,6 +44,17 @@ img { display: block; max-width: 100%; }
 h1, h2, h3, p { margin-top: 0; }
 h1, h2 { font-family: var(--font-display), Georgia, serif; font-weight: 620; letter-spacing: -0.035em; }
 
+.auth-screen { display: grid; min-height: 100vh; place-items: center; padding: 24px; }
+.auth-card { width: min(560px, 100%); padding: clamp(32px, 7vw, 62px); border: 1px solid rgba(255,255,255,.75); border-radius: 30px; background: rgba(255,253,248,.9); box-shadow: var(--shadow); text-align: center; backdrop-filter: blur(18px); }
+.auth-card h1 { margin: 12px 0 16px; font-size: clamp(2.4rem, 7vw, 4.3rem); line-height: 1; }
+.auth-mark { display: grid; width: 62px; height: 62px; place-items: center; margin: 0 auto 25px; border-radius: 20px 20px 20px 7px; color: var(--forest); background: var(--peach); box-shadow: 0 12px 30px rgba(231,111,81,.2); }
+.auth-mark svg { width: 28px; height: 28px; }
+.auth-intro { margin-bottom: 27px; color: var(--ink-soft); line-height: 1.65; }
+.auth-actions { display: flex; justify-content: center; gap: 10px; }
+.auth-loading { display: grid; justify-items: center; }
+.auth-loading .auth-mark { margin-bottom: 20px; }
+.auth-loading > p { margin: 12px 0 0; color: var(--ink-soft); }
+
 .app-frame { min-height: 100vh; }
 .app-content { min-height: 100vh; margin-left: 250px; }
 .app-content main { min-height: 100vh; }
@@ -281,6 +292,7 @@ h1, h2 { font-family: var(--font-display), Georgia, serif; font-weight: 620; let
 .settings-card.form-card { align-items: start; }
 .settings-card.form-card .settings-copy { max-width: 680px; }
 .settings-card form { margin-top: 16px; }
+.connection-value { display: inline-block; max-width: 100%; overflow-wrap: anywhere; margin-top: 12px; padding: 7px 10px; border-radius: 8px; color: var(--forest); background: #edf1ec; font-size: .72rem; }
 .danger-card .settings-icon { color: #a23d28; background: #fae2db; }
 
 .share-modal { width: min(720px,100%); }
@@ -327,6 +339,8 @@ h1, h2 { font-family: var(--font-display), Georgia, serif; font-weight: 620; let
 }
 
 @media (max-width: 580px) {
+  .auth-card { padding: 34px 22px; }
+  .auth-actions { flex-direction: column; }
   .page { width: calc(100% - 24px); padding-top: 27px; }
   .page-heading h1, .journey-heading h1 { font-size: 2.5rem; }
   .stat-strip { grid-template-columns: 1fr; }

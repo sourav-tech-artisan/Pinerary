@@ -1,14 +1,15 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Bell, BellOff, Cloud, Download, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { Bell, BellOff, Cloud, Download, LogOut, RefreshCw, Save, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApp } from "@/components/app-provider";
+import { usePineraryAuth } from "@/components/auth-provider";
 import { InlineMessage, PageHeading } from "@/components/ui";
 import { deleteDevice, getProfile, registerDevice, updateProfile } from "@/lib/api/client";
 import {
   getAPIBaseURL,
-  getAuthToken,
+  getDevelopmentToken,
   getInstallationID,
   getOwnerKey,
   getPreferredTransportMode,
@@ -30,6 +31,7 @@ function vapidKey(value: string): Uint8Array<ArrayBuffer> {
 
 export default function SettingsPage() {
   const app = useApp();
+  const auth = usePineraryAuth();
   const ownerKey = getOwnerKey();
   const pending = useLiveQuery(() => db.outbox.where("ownerKey").equals(ownerKey).count(), [ownerKey]) ?? 0;
   const [apiURL, setAPIURL] = useState("");
@@ -43,7 +45,7 @@ export default function SettingsPage() {
   useEffect(() => {
     queueMicrotask(() => {
       setAPIURL(getAPIBaseURL());
-      setToken(getAuthToken());
+      if (auth.mode === "development") setToken(getDevelopmentToken());
       setMode(getPreferredTransportMode());
     });
     if ("serviceWorker" in navigator) {
@@ -60,11 +62,11 @@ export default function SettingsPage() {
         savePreferredTransportMode(user.default_transport_mode);
       }).catch(() => undefined);
     }
-  }, []);
+  }, [auth.mode]);
 
   function saveConnection(event: React.FormEvent) {
     event.preventDefault();
-    if (!apiURL.trim() || !token.trim()) return;
+    if (!apiURL.trim() || (auth.mode === "development" && !token.trim())) return;
     saveClientConfig(apiURL, token);
     window.location.reload();
   }
@@ -122,6 +124,17 @@ export default function SettingsPage() {
       {message && <InlineMessage tone={message.tone}>{message.text}</InlineMessage>}
 
       <div className="settings-grid">
+        {auth.mode === "auth0" && (
+          <section className="settings-card">
+            <div className="settings-icon"><UserRound /></div>
+            <div className="settings-copy">
+              <h2>Your account</h2>
+              <p>Signed in as {auth.user?.email || auth.user?.name || "an Auth0 user"}.</p>
+            </div>
+            <button className="button secondary" onClick={() => void auth.logout()}><LogOut size={17} /> Log out</button>
+          </section>
+        )}
+
         <section className="settings-card">
           <div className="settings-icon"><Cloud /></div>
           <div className="settings-copy"><h2>Synchronization</h2><p>{pending} queued change{pending === 1 ? "" : "s"}. Last sync {app.lastSync ? app.lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "not completed yet"}.</p></div>
@@ -132,12 +145,21 @@ export default function SettingsPage() {
           <div className="settings-icon"><ShieldCheck /></div>
           <div className="settings-copy">
             <h2>Backend connection</h2>
-            <p>Development mode accepts any non-empty bearer token. Production will use the selected OIDC provider.</p>
-            <form onSubmit={saveConnection}>
-              <label className="field"><span>Go API URL</span><input value={apiURL} onChange={(event) => setAPIURL(event.target.value)} inputMode="url" /></label>
-              <label className="field"><span>Development token</span><input value={token} onChange={(event) => setToken(event.target.value)} autoComplete="off" /></label>
-              <button className="button secondary"><Save size={17} /> Save and reload</button>
-            </form>
+            {auth.mode === "development" ? (
+              <>
+                <p>Local development accepts any non-empty bearer token.</p>
+                <form onSubmit={saveConnection}>
+                  <label className="field"><span>Go API URL</span><input value={apiURL} onChange={(event) => setAPIURL(event.target.value)} inputMode="url" /></label>
+                  <label className="field"><span>Development token</span><input value={token} onChange={(event) => setToken(event.target.value)} autoComplete="off" /></label>
+                  <button className="button secondary"><Save size={17} /> Save and reload</button>
+                </form>
+              </>
+            ) : (
+              <>
+                <p>API requests use a short-lived Auth0 access token that is renewed automatically.</p>
+                <code className="connection-value">{apiURL}</code>
+              </>
+            )}
           </div>
         </section>
 

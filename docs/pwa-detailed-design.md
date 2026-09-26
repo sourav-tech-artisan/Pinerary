@@ -4,7 +4,7 @@
 | --- | --- |
 | Document type | As-built client design and code-reading guide |
 | Client status | MVP feature baseline implemented; real-device hardening pending |
-| Last reviewed | 2026-09-23 |
+| Last reviewed | 2026-09-26 |
 | Framework | Next.js 16 App Router, React 19, TypeScript |
 | Delivery | Static export and installable PWA; no Node production server |
 | Local persistence | IndexedDB through Dexie |
@@ -24,7 +24,7 @@ All authoritative business operations still belong to the Go API. The PWA optimi
 | Is route tracking automatic? | Yes while an active journey exists and the PWA remains open in the foreground. Browsers may suspend it in the background or on screen lock. |
 | Is it installable? | Yes. It has a manifest, application icons, static routes, and a service worker. Production installation requires HTTPS. |
 | Does it call the real backend? | Yes. The client is generated against the OpenAPI contract and calls the Go API directly with bearer authentication. |
-| Is it production-ready? | Not yet. Real iOS/Android browser testing, production OIDC, sync-conflict UX, security review, and operational deployment remain. |
+| Is it production-ready? | Not yet. Auth0 is integrated, but real iOS/Android browser testing, sync-conflict UX, security review, and operational deployment remain. |
 | Is Capacitor included? | No. It remains the final Android-only phase. |
 
 ## 2. Runtime architecture
@@ -33,6 +33,7 @@ All authoritative business operations still belong to the Go API. The PWA optimi
 flowchart LR
     User[Traveller]
     UI[Next.js static PWA]
+    Auth0[Auth0 EU tenant]
     IDB[(IndexedDB<br/>Dexie)]
     SW[Service worker<br/>shell + bounded tile cache]
     API[Go API]
@@ -43,9 +44,12 @@ flowchart LR
     Nominatim[Nominatim]
 
     User --> UI
+    User -->|login/signup| Auth0
+    UI <-->|Authorization Code + PKCE| Auth0
     UI -->|write first| IDB
     IDB -->|outbox flush| UI
     UI -->|Bearer REST| API
+    API -.->|OIDC discovery + JWKS| Auth0
     UI -->|presigned PUT| S3
     UI <--> SW
     API --> DB
@@ -239,7 +243,7 @@ erDiagram
 
 Local IDs are UUIDs created before any network call. Server IDs are added after synchronization. This lets an offline stop refer to an offline journey and an offline photo refer to that stop without waiting for PostgreSQL IDs.
 
-`ownerKey` is a non-secret local partition derived from the active development token. It prevents two local development identities from displaying each other's cached data. The future production identity adapter should replace this with the authenticated stable subject without placing access tokens in IndexedDB.
+`ownerKey` is a non-secret local partition derived from the stable Auth0 `sub` claim. Only its local hash is persisted as the partition key; rotating access tokens never change it. Development mode derives the same shape from the explicit local token. Access and refresh tokens remain in the Auth0 SDK cache and are not copied into IndexedDB.
 
 ### 6.1 Why separate local and server IDs?
 
@@ -444,14 +448,38 @@ The manifest uses standalone display, portrait-first orientation, theme/backgrou
 
 ## 15. Authentication and configuration
 
-During local development:
+Auth0 is the selected production identity provider. `@auth0/auth0-react` implements Authorization Code with PKCE for the statically exported SPA. The login gate supports login and public signup, requests the Pinerary API audience, and asks for `openid profile email offline_access` scopes.
 
-- API base URL defaults to `http://localhost:8080/api/v1`.
-- Bearer token defaults to `alice`.
-- Any non-empty token becomes a stable backend development identity.
-- Settings can change the API URL and token, followed by a reload into the matching local data partition.
+```mermaid
+sequenceDiagram
+    participant Browser as PWA
+    participant Auth0
+    participant API as Go API
 
-This is intentionally not production authentication. Once an OIDC provider is selected, the client needs an authorization-code-with-PKCE adapter, secure token renewal, logout/revocation, and stable subject-based IndexedDB partitioning. Long-lived production access tokens must not be stored as the current development token is.
+    Browser->>Auth0: /authorize + PKCE challenge + API audience
+    Auth0-->>Browser: Redirect with one-time code
+    Browser->>Auth0: Exchange code + PKCE verifier
+    Auth0-->>Browser: Short-lived access token + rotating refresh token
+    Browser->>API: Authorization: Bearer access-token
+    API->>API: Verify issuer, audience, expiry, signature/JWKS
+    API-->>Browser: Owner-scoped response
+```
+
+The SDK renews access tokens with refresh-token rotation and keeps its cache in browser local storage so an installed PWA survives reloads. This improves PWA usability but makes strict XSS prevention important. Pinerary never stores a client secret, never copies tokens to IndexedDB, and never caches OAuth callback URLs or authenticated API responses in its service worker. In Auth0 mode the API origin is fixed at build time, preventing a Settings override from forwarding a bearer token to an untrusted server.
+
+Required public build configuration:
+
+| Variable | Value/purpose |
+| --- | --- |
+| `NEXT_PUBLIC_AUTH_MODE` | `auth0` |
+| `NEXT_PUBLIC_AUTH0_DOMAIN` | `pinerary-prod.eu.auth0.com` |
+| `NEXT_PUBLIC_AUTH0_CLIENT_ID` | Public Pinerary Web SPA client ID |
+| `NEXT_PUBLIC_AUTH0_AUDIENCE` | `https://api.pinerary` |
+| `NEXT_PUBLIC_API_BASE_URL` | Go API `/api/v1` base URL |
+
+The Auth0 SPA must allow every deployed PWA origin as a callback URL, logout URL, and web origin. The Auth0 API must allow offline access, and refresh-token rotation must be enabled for the SPA. The Go API uses issuer `https://pinerary-prod.eu.auth0.com/` (including the trailing slash) and audience `https://api.pinerary`.
+
+An explicit `development` mode remains for isolated local/Postman work. It accepts a non-empty bearer token, shows that token only in development Settings, and must never be deployed publicly.
 
 ## 16. Web Push registration
 
@@ -470,7 +498,7 @@ The generated browser subscription is registered as a `web` device. Disabling pu
 | --- | --- |
 | No network during capture | Local transaction succeeds and UI updates immediately |
 | API timeout/5xx | Outbox retains mutation and exponentially retries |
-| Authentication failure | Current queue flush stops; Settings exposes connection controls |
+| Authentication failure | Current queue flush stops; the login/error gate requests a new Auth0 session |
 | Validation/ownership/conflict response | Mutation becomes permanent failure instead of looping |
 | App reload during queued work | IndexedDB and outbox survive reload |
 | Duplicate create or GPS retry | Stable client/sample IDs let backend deduplicate |
@@ -486,6 +514,9 @@ The generated browser subscription is registered as a `web` device. Disabling pu
 Implemented client controls:
 
 - No backend/provider secrets in the bundle
+- Authorization Code with PKCE and rotating Auth0 refresh tokens
+- Stable subject-derived local account partitions; access-token rotation cannot switch partitions
+- OAuth callback URLs and authenticated API responses excluded from service-worker caches
 - No direct database connectivity
 - Private API responses excluded from service-worker caches
 - Private photos uploaded only through short-lived signed URLs
@@ -499,8 +530,7 @@ Implemented client controls:
 
 Required hardening before public release:
 
-- Production OIDC and session threat model
-- Content Security Policy and static-host security headers
+- Content Security Policy, XSS review, and static-host security headers for the SDK's persistent browser token cache
 - IndexedDB retention/export/deletion UX
 - Per-device storage quota handling and eviction warnings
 - Accessibility audit and real assistive-technology testing
@@ -555,7 +585,7 @@ npm install
 npm run dev
 ```
 
-Use Settings to choose another development identity. Use browser developer tools to test offline mode, IndexedDB contents, service-worker installation, location permissions, and storage usage.
+Log in or create an account through Auth0. The API URL and development-token fields are editable only when both client and API explicitly use development mode; Auth0 builds display their fixed API URL. Use browser developer tools to test offline mode, IndexedDB contents, service-worker installation, location permissions, and storage usage.
 
 For install/push testing beyond localhost, use an HTTPS origin. A static file server must support trailing-slash route directories such as `/journey/index.html`.
 
@@ -567,7 +597,7 @@ For install/push testing beyond localhost, use an HTTPS origin. A static file se
 | P0 device | Test install, offline reload, camera, large Blob, and reconnect flows | These depend on device storage and PWA lifecycle behavior |
 | P1 UX | Add an outbox/conflict detail screen with retry/discard/reconcile actions | Permanent failures currently surface only as pending/error status |
 | P1 UX | Add saved-place edit/delete and share-link management/revocation screens | Backend endpoints already exist |
-| P1 auth | Select and integrate production OIDC with PKCE | Development bearer tokens are local-only |
+| P1 auth | Real-browser login, renewal, logout, expiry, and account-switch testing | Provider integration is implemented but lifecycle behavior needs device coverage |
 | P1 test | Add Playwright browser workflows and accessibility checks | Unit tests do not cover full UI interactions |
 | Pre-public | Security headers, CSP, S3 CORS, HTTPS, monitoring, retention/export/deletion | Deployment and privacy readiness |
 

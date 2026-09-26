@@ -265,6 +265,8 @@ Using `alice` consistently returns the same internal user; `bob` produces an ind
 
 ### 7.2 OIDC mode
 
+Production uses the Auth0 EU tenant at `https://pinerary-prod.eu.auth0.com/` and expects audience `https://api.pinerary`. These values are configuration rather than provider-specific service code, so the verifier boundary remains standards-based.
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -860,7 +862,7 @@ The backend MVP integration gate is closed: the OpenAPI contract is typed and ro
 | Priority | Item | Why it matters |
 | --- | --- | --- |
 | P1 | Recompute and verify photo SHA-256 server-side or remove the checksum claim | The value is currently stored but not independently verified |
-| P1 | Decide production OIDC provider and account-recovery flow | Development auth is intentionally unsafe outside local development |
+| P1 | Exercise Auth0 signup/login/renewal/logout against each deployed origin | Identity integration exists, but callback and token lifecycle settings are deployment-sensitive |
 | P1 | Configure production S3 CORS, TLS ingress, secrets, backups, and monitoring | Deployment work rather than missing domain code |
 | Pre-public | Account export/deletion, audit events, retention policy, broader load/security tests | Privacy and operational readiness for users beyond the initial development group |
 
