@@ -22,6 +22,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/nearby"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/placesearch"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/routing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/sharing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/telemetry"
@@ -80,6 +81,11 @@ func run() error {
 		return err
 	}
 	geocodingService := geocoding.NewService(queries, nominatim)
+	placeSearchProvider, err := buildPlaceSearchProvider(cfg)
+	if err != nil {
+		return err
+	}
+	placeSearchService := placesearch.NewService(queries, placeSearchProvider, cfg.GeoapifyDailyBudget)
 	trackingService := tracking.NewService(databasePool)
 	objectStore, err := objectstore.NewMinIOStore(
 		cfg.ObjectEndpoint, cfg.ObjectAccessKey, cfg.ObjectSecretKey, cfg.ObjectBucket, cfg.ObjectUseTLS,
@@ -100,19 +106,20 @@ func run() error {
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpapi.NewRouter(httpapi.RouterConfig{
-			AllowedOrigins:   cfg.AllowedOrigins,
-			Logger:           logger,
-			Ready:            databasePool.Ping,
-			UserProvisioner:  queries,
-			ProfileStore:     queries,
-			JourneyService:   journeyService,
-			PlaceService:     placeService,
-			GeocodingService: geocodingService,
-			TrackingService:  trackingService,
-			MediaService:     mediaService,
-			NearbyService:    nearbyService,
-			SharingService:   sharingService,
-			Verifier:         verifier,
+			AllowedOrigins:     cfg.AllowedOrigins,
+			Logger:             logger,
+			Ready:              databasePool.Ping,
+			UserProvisioner:    queries,
+			ProfileStore:       queries,
+			JourneyService:     journeyService,
+			PlaceService:       placeService,
+			PlaceSearchService: placeSearchService,
+			GeocodingService:   geocodingService,
+			TrackingService:    trackingService,
+			MediaService:       mediaService,
+			NearbyService:      nearbyService,
+			SharingService:     sharingService,
+			Verifier:           verifier,
 		}),
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
@@ -151,6 +158,17 @@ func run() error {
 	}
 
 	return nil
+}
+
+func buildPlaceSearchProvider(cfg config.Config) (placesearch.Provider, error) {
+	switch cfg.PlaceSearchProvider {
+	case "disabled":
+		return nil, nil
+	case placesearch.ProviderGeoapify:
+		return placesearch.NewGeoapifyClient(cfg.GeoapifyURL, cfg.GeoapifyAPIKey, nil)
+	default:
+		return nil, fmt.Errorf("unsupported place search provider %q", cfg.PlaceSearchProvider)
+	}
 }
 
 func buildVerifier(ctx context.Context, cfg config.Config) (identity.Verifier, error) {

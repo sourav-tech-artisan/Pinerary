@@ -12,6 +12,7 @@ The repository contains the Go backend foundation and an installable, offline-fi
 - [Readable backend design artifact](docs/backend-detailed-design.html)
 - [PWA detailed design and repository guide](docs/pwa-detailed-design.md)
 - [Readable PWA design artifact](docs/pwa-detailed-design.html)
+- [Advance place search implementation plan](docs/place-search-implementation-plan.md)
 - [PWA setup](web/README.md)
 - [Backend setup](backend/README.md)
 - [Backend API handbook](docs/backend-api.md)

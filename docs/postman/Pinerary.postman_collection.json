@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ba6a7ef4-2306-4de6-b7df-d315bc19a4b5",
     "name": "Pinerary Backend MVP",
-    "description": "Run folders in order against the Pinerary local development environment. Development auth accepts any non-empty bearer token. Nearby and map matching require Valhalla; photo derivation requires the worker. The direct photo PUT requires selecting a local binary file manually.",
+    "description": "Run folders in order against the Pinerary local development environment. Development auth accepts any non-empty bearer token. Nearby and map matching require Valhalla; place suggestions require Geoapify when placeSearchEnabled is true; photo derivation requires the worker. The direct photo PUT requires selecting a local binary file manually.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -145,6 +145,19 @@
     {
       "name": "04 - Saved places and nearby",
       "item": [
+        {
+          "name": "Autocomplete place suggestions",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Accept-Language", "value": "en-IN,en;q=0.9"}],
+            "url": "{{baseUrl}}/api/v1/places/search?q=Bhappe%20Da%20Hot&limit=5",
+            "description": "Set placeSearchEnabled=true after configuring the backend Geoapify provider and secret."
+          },
+          "event": [
+            {"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["if (pm.environment.get('placeSearchEnabled') !== 'true') pm.execution.skipRequest();"]}},
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Suggestions include attribution', function () {", "  pm.response.to.have.status(200);", "  const body = pm.response.json();", "  pm.expect(body).to.have.property('items');", "  pm.expect(body).to.have.property('attribution');", "});"]}}
+          ]
+        },
         {
           "name": "Save standalone place",
           "request": {

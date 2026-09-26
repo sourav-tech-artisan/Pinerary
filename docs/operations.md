@@ -6,7 +6,7 @@ Deploy one container image in three roles:
 
 ```text
 migration job -> PostgreSQL/PostGIS
-API           -> PostgreSQL, object storage, Nominatim, Valhalla
+API           -> PostgreSQL, object storage, Geoapify, Nominatim, Valhalla
 worker        -> PostgreSQL, object storage, Valhalla, Web Push
 ```
 
@@ -25,10 +25,14 @@ The API and worker may be replicated independently. PostgreSQL job leasing uses 
 | `PINERARY_OBJECT_*` | Private S3-compatible endpoint, credentials, bucket, and TLS flag |
 | `PINERARY_VALHALLA_URL` | Private/restricted regional Valhalla endpoint |
 | `PINERARY_NOMINATIM_*` | Provider URL and compliant identifying user agent |
+| `PINERARY_PLACE_SEARCH_PROVIDER` | Set to `geoapify` to enable advance-place suggestions |
+| `PINERARY_GEOAPIFY_BASE_URL` | Geoapify API origin; default `https://api.geoapify.com` |
+| `PINERARY_GEOAPIFY_API_KEY` | Required server-side secret when suggestions are enabled |
+| `PINERARY_GEOAPIFY_DAILY_BUDGET` | Upstream daily-call ceiling; default `2500` |
 | `PINERARY_VAPID_*` | Web Push contact, public key, and private key |
 | `PINERARY_OTEL_EXPORTER_OTLP_ENDPOINT` | Optional OTLP HTTP traces endpoint |
 
-Keep secrets in the hosting platform's secret manager, not an image, repository, logs, or frontend environment. Rotate database, object-store, and VAPID credentials deliberately; existing browser push subscriptions may need renewal after a VAPID rotation.
+Keep secrets in the hosting platform's secret manager, not an image, repository, logs, or frontend environment. The Geoapify key is a backend secret because its provider request uses a URL parameter; outgoing traces deliberately omit that URL. Rotate database, object-store, Geoapify, and VAPID credentials deliberately; existing browser push subscriptions may need renewal after a VAPID rotation.
 
 The Auth0 domain, SPA client ID, and API audience are public browser configuration, not secrets. Never place an Auth0 client secret in the PWA. For each PWA deployment, add its exact HTTPS origin to the Auth0 SPA's allowed callback URLs, logout URLs, and web origins; enable refresh-token rotation on the SPA and offline access on the API.
 
@@ -39,7 +43,7 @@ The Auth0 domain, SPA client ID, and API audience are public browser configurati
 3. Run `/pinerary-migrate up` as a single deployment job.
 4. Replace API instances and verify `/health/live` and `/health/ready`.
 5. Replace worker instances and check that the job backlog drains.
-6. Smoke-test OIDC, place save, nearby routing, photo upload, and a revocable share.
+6. Smoke-test OIDC, autocomplete attribution, place save, nearby routing, photo upload, and a revocable share.
 
 Migrations are embedded in the binary. Never automate `migrate down` in production; forward-fix unless a reviewed rollback explicitly proves data safety.
 
@@ -57,7 +61,8 @@ Recommended alerts:
 - API p95 latency regression
 - `background_jobs` in `dead` state
 - Old available/running jobs and a growing queue
-- Valhalla/Nominatim error or latency spikes
+- Geoapify/Valhalla/Nominatim error or latency spikes
+- Geoapify daily usage at 70%, 85%, or 95% of the configured application budget
 - Object-storage failures
 - Database connection saturation and storage growth
 
@@ -104,6 +109,7 @@ Use the object provider's versioning/snapshot mechanism for the private media bu
 ## Provider and failure behaviour
 
 - **Valhalla:** host a regional OpenStreetMap graph. Nearby road ranking returns `503` when the selected mode fails. Map-matching jobs retry, while cleaned routes remain available.
+- **Geoapify:** autocomplete is cached and budgeted below the configured free allowance. Display linked Geoapify and OpenStreetMap attribution. A spent application budget returns `429` until the next UTC day.
 - **Nominatim:** requests are user-triggered, cached, and identified. Verify the current public usage policy before deployment; self-host or replace it when usage no longer fits.
 - **Object storage:** buckets stay private. Clients receive short-lived PUT/GET URLs. Configure CORS only for the PWA origins and allowed methods.
 - **Web Push:** notification delivery is best effort. Outing expiration is a database job and proceeds even if push delivery fails.

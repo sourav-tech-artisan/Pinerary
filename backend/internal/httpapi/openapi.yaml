@@ -289,6 +289,21 @@ paths:
                 $ref: "#/components/schemas/Place"
         default:
           $ref: "#/components/responses/Error"
+  /places/search:
+    get:
+      operationId: searchPlaces
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 3, maxLength: 200}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 10, default: 5}}
+      responses:
+        "200":
+          description: Place and address suggestions for the partial query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaceSearchResult"
+        default:
+          $ref: "#/components/responses/Error"
   /places/{placeId}:
     parameters:
       - {name: placeId, in: path, required: true, schema: {type: string, format: uuid}}
@@ -608,6 +623,47 @@ components:
         items:
           type: array
           items: {$ref: "#/components/schemas/Place"}
+    PlaceSearchBoundingBox:
+      type: object
+      additionalProperties: false
+      required: [south, west, north, east]
+      properties:
+        south: {type: number, format: double, minimum: -90, maximum: 90}
+        west: {type: number, format: double, minimum: -180, maximum: 180}
+        north: {type: number, format: double, minimum: -90, maximum: 90}
+        east: {type: number, format: double, minimum: -180, maximum: 180}
+    PlaceSuggestion:
+      type: object
+      additionalProperties: false
+      required: [result_id, name, address, latitude, longitude]
+      properties:
+        result_id: {type: string, minLength: 1}
+        name: {type: string, minLength: 1}
+        address: {type: string}
+        latitude: {type: number, format: double, minimum: -90, maximum: 90}
+        longitude: {type: number, format: double, minimum: -180, maximum: 180}
+        category: {type: string}
+        type: {type: string}
+        bounding_box: {$ref: "#/components/schemas/PlaceSearchBoundingBox"}
+    PlaceSearchAttribution:
+      type: object
+      additionalProperties: false
+      required: [provider, provider_url, data, data_url]
+      properties:
+        provider: {type: string}
+        provider_url: {type: string, format: uri}
+        data: {type: string}
+        data_url: {type: string, format: uri}
+    PlaceSearchResult:
+      type: object
+      additionalProperties: false
+      required: [items, attribution]
+      properties:
+        items:
+          type: array
+          maxItems: 10
+          items: {$ref: "#/components/schemas/PlaceSuggestion"}
+        attribution: {$ref: "#/components/schemas/PlaceSearchAttribution"}
     PinStopRequest:
       type: object
       additionalProperties: false

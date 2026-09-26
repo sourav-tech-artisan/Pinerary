@@ -16,7 +16,7 @@ Public exceptions are `GET /api/v1/shares/{token}` for JSON and `GET /s/{token}`
 
 Offline-retryable creates carry a stable `client_request_id` in the JSON body. Retrying with the same authenticated owner and ID returns the same logical resource rather than duplicating it. Journey updates use the returned `version`; a stale version receives `409`.
 
-A `429` response includes `Retry-After`. Current per-minute limits are 30 reverse-geocode requests, 30 upload reservations, and 60 nearby searches per authenticated user; public share reads allow 120 per client IP. These limits are per API process.
+A `429` response includes `Retry-After`. Current per-minute limits are 30 place-suggestion requests, 30 reverse-geocode requests, 30 upload reservations, and 60 nearby searches per authenticated user; public share reads allow 120 per client IP. These limits are per API process. Provider cache misses additionally stop at the configured daily Geoapify budget.
 
 ## Main workflow
 
@@ -121,6 +121,15 @@ The owner can revoke with `DELETE /share-links/{shareId}`. Revoked, expired, or 
 
 `POST /places` saves a location without an active journey. Journey pins are also added to the same private place library.
 
+Advance place discovery uses authenticated, debounced suggestions:
+
+```http
+GET /api/v1/places/search?q=Bhappe%20Da%20Hot&limit=5
+Accept-Language: en-IN,en;q=0.9
+```
+
+The backend checks a shared PostgreSQL cache, enforces the application daily budget, and then calls Geoapify when necessary. The key stays server-side. The response contains normalized names, addresses, coordinates, optional bounding boxes, and the required Geoapify/OpenStreetMap attribution. Searches require connectivity; saving a selected result uses the normal offline-first `POST /places` flow. `429 place_search_quota_exhausted` lasts until the next UTC allowance window, while provider failures return `503 place_search_unavailable`.
+
 ```http
 GET /api/v1/places/nearby?latitude=28.6139&longitude=77.2090&limit=10&mode=motorcycle
 ```
@@ -134,7 +143,7 @@ The default mode is `motorcycle`. PostGIS creates a bounded straight-line shortl
 | Profile/devices | `GET/PATCH /me`, `GET/POST /devices`, `DELETE /devices/{id}` |
 | Journeys | `GET/POST /journeys`, `GET/PATCH /journeys/{id}`, convert, end |
 | Stops/routes | Journey stops, location batches, derived route, stop photos |
-| Places | Save, list, edit, soft-delete, reverse geocode, nearby |
+| Places | Suggest, save, list, edit, soft-delete, reverse geocode, nearby |
 | Media | Upload intent, upload completion, private stop gallery |
 | Sharing | Create, resolve JSON/page, revoke |
 | Platform | Liveness, readiness, metrics, OpenAPI |

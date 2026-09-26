@@ -128,6 +128,22 @@ type Place struct {
 	ClientRequestID pgtype.UUID        `json:"client_request_id"`
 }
 
+type PlaceSearchCache struct {
+	CacheKey    string             `json:"cache_key"`
+	Results     []byte             `json:"results"`
+	ResultCount int32              `json:"result_count"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ProviderDailyUsage struct {
+	Provider     string             `json:"provider"`
+	UsageDate    pgtype.Date        `json:"usage_date"`
+	RequestCount int32              `json:"request_count"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type ReverseGeocodeCache struct {
 	LatitudeE5      int32              `json:"latitude_e5"`
 	LongitudeE5     int32              `json:"longitude_e5"`

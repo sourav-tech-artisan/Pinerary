@@ -22,6 +22,7 @@ import (
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/journeys"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/objectstore"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/places"
+	"github.com/sourav-tech-artisan/Pinerary/backend/internal/placesearch"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/sharing"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/tracking"
 )
@@ -29,14 +30,23 @@ import (
 func TestAuthenticatedJourneyHTTPWorkflow(t *testing.T) {
 	pool := openTestPool(t)
 	queries := dbgen.New(pool)
+	searchResultID := "integration-search-" + uuid.NewString()
+	searchProvider := &placeSearchProviderStub{
+		name: "integration-" + uuid.NewString(),
+		results: []placesearch.Suggestion{{
+			ResultID: searchResultID, Name: "Bhappe Da Hotel", Address: "New Delhi",
+			Latitude: 28.6512, Longitude: 77.1905,
+		}},
+	}
 	router := httpapi.NewRouter(httpapi.RouterConfig{
-		UserProvisioner: queries,
-		ProfileStore:    queries,
-		JourneyService:  journeys.NewService(pool),
-		PlaceService:    places.NewService(pool),
-		TrackingService: tracking.NewService(pool),
-		SharingService:  sharing.NewService(queries, unusedObjectStore{}, "http://example.test"),
-		Verifier:        identity.DevelopmentVerifier{},
+		UserProvisioner:    queries,
+		ProfileStore:       queries,
+		JourneyService:     journeys.NewService(pool),
+		PlaceService:       places.NewService(pool),
+		PlaceSearchService: placesearch.NewService(queries, searchProvider, 2),
+		TrackingService:    tracking.NewService(pool),
+		SharingService:     sharing.NewService(queries, unusedObjectStore{}, "http://example.test"),
+		Verifier:           identity.DevelopmentVerifier{},
 	})
 
 	ownerToken := "workflow-owner-" + uuid.NewString()
@@ -49,7 +59,19 @@ func TestAuthenticatedJourneyHTTPWorkflow(t *testing.T) {
 		}
 		_, _ = pool.Exec(ctx, "DELETE FROM users WHERE oidc_subject IN ($1, $2)",
 			"development:"+ownerToken, "development:"+otherToken)
+		_, _ = pool.Exec(ctx, "DELETE FROM place_search_cache WHERE results @> $1::jsonb", `[{"result_id":"`+searchResultID+`"}]`)
+		_, _ = pool.Exec(ctx, "DELETE FROM provider_daily_usage WHERE provider = $1", searchProvider.name)
 	})
+
+	search := requestJSON[placeSearchHTTPResponse](t, router, http.MethodGet,
+		"/api/v1/places/search?q=Bhappe+Da+Hot&limit=5", ownerToken, nil, http.StatusOK)
+	if len(search.Items) != 1 || search.Items[0].ResultID != searchResultID || search.Attribution.Provider == "" {
+		t.Fatalf("unexpected place suggestions: %#v", search)
+	}
+	requestJSON[map[string]any](t, router, http.MethodPost, "/api/v1/places", ownerToken, map[string]any{
+		"client_request_id": uuid.New(), "name": search.Items[0].Name, "notes": "Saved from suggestions",
+		"latitude": search.Items[0].Latitude, "longitude": search.Items[0].Longitude,
+	}, http.StatusCreated)
 
 	clientRequestID := uuid.New()
 	created := requestJSON[journeyHTTPResponse](t, router, http.MethodPost, "/api/v1/journeys", ownerToken, map[string]any{
@@ -172,6 +194,24 @@ type shareHTTPResponse struct {
 	ID      uuid.UUID `json:"id"`
 	URL     string    `json:"url"`
 	Message string    `json:"message"`
+}
+
+type placeSearchHTTPResponse struct {
+	Items       []placesearch.Suggestion `json:"items"`
+	Attribution struct {
+		Provider string `json:"provider"`
+	} `json:"attribution"`
+}
+
+type placeSearchProviderStub struct {
+	name    string
+	results []placesearch.Suggestion
+}
+
+func (p *placeSearchProviderStub) Name() string { return p.name }
+
+func (p *placeSearchProviderStub) Suggest(context.Context, placesearch.SuggestInput) ([]placesearch.Suggestion, error) {
+	return p.results, nil
 }
 
 func requestJSON[T any](

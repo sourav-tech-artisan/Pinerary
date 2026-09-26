@@ -13,20 +13,21 @@ import (
 )
 
 type RouterConfig struct {
-	AllowedOrigins   []string
-	Logger           *slog.Logger
-	Ready            func(context.Context) error
-	UserProvisioner  userProvisioner
-	ProfileStore     profileStore
-	JourneyService   journeyService
-	PlaceService     placeService
-	GeocodingService geocodingService
-	TrackingService  trackingService
-	MediaService     mediaService
-	NearbyService    nearbyService
-	SharingService   sharingService
-	Metrics          *Metrics
-	Verifier         identity.Verifier
+	AllowedOrigins     []string
+	Logger             *slog.Logger
+	Ready              func(context.Context) error
+	UserProvisioner    userProvisioner
+	ProfileStore       profileStore
+	JourneyService     journeyService
+	PlaceService       placeService
+	PlaceSearchService placeSearchService
+	GeocodingService   geocodingService
+	TrackingService    trackingService
+	MediaService       mediaService
+	NearbyService      nearbyService
+	SharingService     sharingService
+	Metrics            *Metrics
+	Verifier           identity.Verifier
 }
 
 func NewRouter(config RouterConfig) *gin.Engine {
@@ -82,6 +83,8 @@ func NewRouter(config RouterConfig) *gin.Engine {
 	place := placeHandler{service: config.PlaceService}
 	api.POST("/places", place.save)
 	api.GET("/places", place.list)
+	placeSearch := placeSearchHandler{service: config.PlaceSearchService}
+	api.GET("/places/search", newFixedWindowLimiter(30, time.Minute).middleware("place_search"), placeSearch.search)
 	api.PATCH("/places/:placeId", place.update)
 	api.DELETE("/places/:placeId", place.delete)
 	api.POST("/journeys/:journeyId/stops", place.pinStop)

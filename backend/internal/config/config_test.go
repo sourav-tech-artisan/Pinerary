@@ -44,3 +44,15 @@ func TestLoadParsesAllowedOrigins(t *testing.T) {
 		t.Fatalf("unexpected first allowed origin %q", cfg.AllowedOrigins[0])
 	}
 }
+
+func TestLoadParsesPlaceSearchConfiguration(t *testing.T) {
+	t.Setenv("PINERARY_PLACE_SEARCH_PROVIDER", "GEOAPIFY")
+	t.Setenv("PINERARY_GEOAPIFY_API_KEY", "test-key")
+	t.Setenv("PINERARY_GEOAPIFY_DAILY_BUDGET", "1234")
+
+	cfg := Load()
+
+	if cfg.PlaceSearchProvider != "geoapify" || cfg.GeoapifyAPIKey != "test-key" || cfg.GeoapifyDailyBudget != 1234 {
+		t.Fatalf("unexpected place-search configuration %#v", cfg)
+	}
+}

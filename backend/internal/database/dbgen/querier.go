@@ -39,6 +39,7 @@ type Querier interface {
 	GetPhotoByID(ctx context.Context, id pgtype.UUID) (Photo, error)
 	GetPhotoForOwner(ctx context.Context, arg GetPhotoForOwnerParams) (Photo, error)
 	GetPlace(ctx context.Context, arg GetPlaceParams) (GetPlaceRow, error)
+	GetPlaceSearchCache(ctx context.Context, cacheKey string) (PlaceSearchCache, error)
 	GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserBySubject(ctx context.Context, oidcSubject string) (User, error)
@@ -62,6 +63,7 @@ type Querier interface {
 	NearbyPlaceCandidates(ctx context.Context, arg NearbyPlaceCandidatesParams) ([]NearbyPlaceCandidatesRow, error)
 	NextJourneyStopSequence(ctx context.Context, journeyID pgtype.UUID) (int64, error)
 	RequeueStaleJobs(ctx context.Context, lockedAt pgtype.Timestamptz) (int64, error)
+	ReserveProviderDailyUsage(ctx context.Context, arg ReserveProviderDailyUsageParams) (ProviderDailyUsage, error)
 	RetryJob(ctx context.Context, arg RetryJobParams) error
 	RevokeItineraryShare(ctx context.Context, arg RevokeItineraryShareParams) (int64, error)
 	UpdateJourneyLabel(ctx context.Context, arg UpdateJourneyLabelParams) (Journey, error)
@@ -71,6 +73,7 @@ type Querier interface {
 	UpdatePlace(ctx context.Context, arg UpdatePlaceParams) (UpdatePlaceRow, error)
 	UpdateUserPreferences(ctx context.Context, arg UpdateUserPreferencesParams) (User, error)
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
+	UpsertPlaceSearchCache(ctx context.Context, arg UpsertPlaceSearchCacheParams) (PlaceSearchCache, error)
 	UpsertReverseGeocodeCache(ctx context.Context, arg UpsertReverseGeocodeCacheParams) (ReverseGeocodeCache, error)
 	UpsertUserFromIdentity(ctx context.Context, arg UpsertUserFromIdentityParams) (User, error)
 }

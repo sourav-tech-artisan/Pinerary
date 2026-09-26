@@ -4,15 +4,56 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sourav-tech-artisan/Pinerary/backend/internal/database/dbgen"
 )
+
+func TestPlaceSearchCacheAndDailyBudget(t *testing.T) {
+	pool := openTestPool(t)
+	queries := dbgen.New(pool)
+	ctx := context.Background()
+	cacheKey := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	provider := "integration-" + uuid.NewString()
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), "DELETE FROM place_search_cache WHERE cache_key = $1", cacheKey)
+		_, _ = pool.Exec(context.Background(), "DELETE FROM provider_daily_usage WHERE provider = $1", provider)
+	})
+
+	_, err := queries.UpsertPlaceSearchCache(ctx, dbgen.UpsertPlaceSearchCacheParams{
+		CacheKey: cacheKey, Results: []byte(`[{"name":"Delhi"}]`), ResultCount: 1,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().UTC().Add(time.Hour), Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("upsert place search cache: %v", err)
+	}
+	cache, err := queries.GetPlaceSearchCache(ctx, cacheKey)
+	if err != nil || cache.ResultCount != 1 {
+		t.Fatalf("get place search cache: cache=%#v err=%v", cache, err)
+	}
+
+	for expected := int32(1); expected <= 2; expected++ {
+		usage, err := queries.ReserveProviderDailyUsage(ctx, dbgen.ReserveProviderDailyUsageParams{
+			Provider: provider, DailyLimit: 2,
+		})
+		if err != nil || usage.RequestCount != expected {
+			t.Fatalf("reserve provider usage %d: usage=%#v err=%v", expected, usage, err)
+		}
+	}
+	_, err = queries.ReserveProviderDailyUsage(ctx, dbgen.ReserveProviderDailyUsageParams{
+		Provider: provider, DailyLimit: 2,
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("expected exhausted budget to return no rows, got %v", err)
+	}
+}
 
 func openTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()

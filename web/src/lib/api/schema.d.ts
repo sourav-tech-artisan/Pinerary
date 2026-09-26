@@ -208,6 +208,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/places/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/places/{placeId}": {
         parameters: {
             query?: never;
@@ -476,6 +492,40 @@ export interface components {
         };
         PlaceList: {
             items: components["schemas"]["Place"][];
+        };
+        PlaceSearchBoundingBox: {
+            /** Format: double */
+            south: number;
+            /** Format: double */
+            west: number;
+            /** Format: double */
+            north: number;
+            /** Format: double */
+            east: number;
+        };
+        PlaceSuggestion: {
+            result_id: string;
+            name: string;
+            address: string;
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            category?: string;
+            type?: string;
+            bounding_box?: components["schemas"]["PlaceSearchBoundingBox"];
+        };
+        PlaceSearchAttribution: {
+            provider: string;
+            /** Format: uri */
+            provider_url: string;
+            data: string;
+            /** Format: uri */
+            data_url: string;
+        };
+        PlaceSearchResult: {
+            items: components["schemas"]["PlaceSuggestion"][];
+            attribution: components["schemas"]["PlaceSearchAttribution"];
         };
         PinStopRequest: {
             /** Format: uuid */
@@ -1149,6 +1199,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Place"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    searchPlaces: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Place and address suggestions for the partial query */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceSearchResult"];
                 };
             };
             default: components["responses"]["Error"];

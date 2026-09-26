@@ -6,7 +6,7 @@ The backend is a Go modular monolith with three executables:
 - `pinerary-worker` cleans and map-matches routes, processes photos, and enforces outing deadlines.
 - `pinerary-migrate` applies or inspects embedded Goose migrations.
 
-PostgreSQL/PostGIS is the source of truth, MinIO provides local S3-compatible storage, Nominatim provides reverse geocoding, and Valhalla provides road matrices and map matching.
+PostgreSQL/PostGIS is the source of truth, MinIO provides local S3-compatible storage, Geoapify provides advance-place suggestions, Nominatim provides reverse geocoding, and Valhalla provides road matrices and map matching.
 
 ## Requirements
 
@@ -32,6 +32,15 @@ make migrate
 ```
 
 The example credentials are local-development defaults only. Before using public Nominatim, replace the placeholder contact in `PINERARY_NOMINATIM_USER_AGENT` and follow its current usage policy.
+
+Place suggestions are disabled until a Geoapify key is configured. Create a free server-side key, then set:
+
+```bash
+PINERARY_PLACE_SEARCH_PROVIDER=geoapify
+PINERARY_GEOAPIFY_API_KEY=<your-key>
+```
+
+Keep this key in `backend/.env` or a production secret store, never in `NEXT_PUBLIC_*` configuration or Git.
 
 Start the API and worker in separate terminals after loading `.env` in each:
 
@@ -65,13 +74,16 @@ Never enable `PINERARY_AUTH_MODE=development` in a public environment. Productio
 - MinIO console: `http://localhost:9001`
 - MinIO S3 endpoint: `http://localhost:9000`
 - Valhalla default: `http://localhost:8002`
+- Geoapify default: `https://api.geoapify.com` when enabled
 - Nominatim default: `https://nominatim.openstreetmap.org`
 
 Self-hosted Valhalla does not require an account or API key. It builds its graph from the configured OpenStreetMap PBF extract. To add another disconnected region such as Goa, add its PBF URL to `tile_urls` and recreate Valhalla; file hashes trigger a graph rebuild while the backend endpoint remains unchanged. Public Nominatim also has no API key, but its usage policy requires an identifying application/contact and permits only light user-triggered traffic.
 
+Geoapify autocomplete requests are proxied through the API, cached by a hash of the normalized query, limited to 30 requests per user per minute, and capped at 2,500 upstream calls per UTC day by default. The application cap deliberately stays below the provider's current free allowance. The API returns `429 place_search_quota_exhausted` after reaching it.
+
 If Valhalla is unavailable, normal capture still works; nearby road ranking returns `503`, and queued map-matching jobs retry before entering the dead-letter state. Straight-line distance is only used to shortlist candidates, never as the successful default nearby result. The worker also removes photo uploads that remain pending for more than 24 hours.
 
-Authenticated reverse-geocode/upload requests are limited to 30 per minute per user and nearby requests to 60. Public share reads are limited to 120 per minute per client IP. These in-process limits are per API replica; use an edge limiter as an additional production control when horizontally scaling.
+Authenticated place-suggestion, reverse-geocode, and upload requests are limited to 30 per minute per user; nearby requests allow 60. Public share reads are limited to 120 per minute per client IP. These in-process limits are per API replica; use an edge limiter as an additional production control when horizontally scaling.
 
 Generate Web Push credentials with:
 

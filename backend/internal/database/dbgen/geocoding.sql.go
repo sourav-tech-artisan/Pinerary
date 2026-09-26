@@ -7,7 +7,29 @@ package dbgen
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const getPlaceSearchCache = `-- name: GetPlaceSearchCache :one
+SELECT cache_key, results, result_count, expires_at, created_at, updated_at FROM place_search_cache
+WHERE cache_key = $1
+  AND expires_at > now()
+`
+
+func (q *Queries) GetPlaceSearchCache(ctx context.Context, cacheKey string) (PlaceSearchCache, error) {
+	row := q.db.QueryRow(ctx, getPlaceSearchCache, cacheKey)
+	var i PlaceSearchCache
+	err := row.Scan(
+		&i.CacheKey,
+		&i.Results,
+		&i.ResultCount,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
 
 const getReverseGeocodeCache = `-- name: GetReverseGeocodeCache :one
 SELECT latitude_e5, longitude_e5, display_name, provider_payload, created_at, updated_at FROM reverse_geocode_cache
@@ -27,6 +49,70 @@ func (q *Queries) GetReverseGeocodeCache(ctx context.Context, arg GetReverseGeoc
 		&i.LongitudeE5,
 		&i.DisplayName,
 		&i.ProviderPayload,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const reserveProviderDailyUsage = `-- name: ReserveProviderDailyUsage :one
+INSERT INTO provider_daily_usage (provider, usage_date, request_count)
+VALUES ($1, (now() AT TIME ZONE 'UTC')::date, 1)
+ON CONFLICT (provider, usage_date) DO UPDATE
+SET request_count = provider_daily_usage.request_count + 1,
+    updated_at = now()
+WHERE provider_daily_usage.request_count < $2
+RETURNING provider, usage_date, request_count, updated_at
+`
+
+type ReserveProviderDailyUsageParams struct {
+	Provider   string `json:"provider"`
+	DailyLimit int32  `json:"daily_limit"`
+}
+
+func (q *Queries) ReserveProviderDailyUsage(ctx context.Context, arg ReserveProviderDailyUsageParams) (ProviderDailyUsage, error) {
+	row := q.db.QueryRow(ctx, reserveProviderDailyUsage, arg.Provider, arg.DailyLimit)
+	var i ProviderDailyUsage
+	err := row.Scan(
+		&i.Provider,
+		&i.UsageDate,
+		&i.RequestCount,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertPlaceSearchCache = `-- name: UpsertPlaceSearchCache :one
+INSERT INTO place_search_cache (cache_key, results, result_count, expires_at)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (cache_key) DO UPDATE
+SET results = EXCLUDED.results,
+    result_count = EXCLUDED.result_count,
+    expires_at = EXCLUDED.expires_at,
+    updated_at = now()
+RETURNING cache_key, results, result_count, expires_at, created_at, updated_at
+`
+
+type UpsertPlaceSearchCacheParams struct {
+	CacheKey    string             `json:"cache_key"`
+	Results     []byte             `json:"results"`
+	ResultCount int32              `json:"result_count"`
+	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
+func (q *Queries) UpsertPlaceSearchCache(ctx context.Context, arg UpsertPlaceSearchCacheParams) (PlaceSearchCache, error) {
+	row := q.db.QueryRow(ctx, upsertPlaceSearchCache,
+		arg.CacheKey,
+		arg.Results,
+		arg.ResultCount,
+		arg.ExpiresAt,
+	)
+	var i PlaceSearchCache
+	err := row.Scan(
+		&i.CacheKey,
+		&i.Results,
+		&i.ResultCount,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
